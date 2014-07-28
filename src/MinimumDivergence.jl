@@ -1,5 +1,13 @@
 module MinimumDivergence
 
-# package code goes here
+
+
+include("md.jl")
+
+
+export MomentFunction, md
+
+
+
 
 end # module
