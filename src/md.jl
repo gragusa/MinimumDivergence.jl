@@ -3,6 +3,8 @@ using Ipopt
 using ArrayViews
 using Divergences
 using ForwardDiff
+using PDMats
+using StatsBase
 
 ## Simplest API
 ## The only function that is passed is
@@ -58,24 +60,23 @@ type MomentFunction
 end
 
 
-immutable MinimumDivergenceVariance
-  stab::Array{Float64, 2}
-end
 
-immutable MinimumDivergenceProblem
+type MinimumDivergenceProblem
   mf::MomentFunction
   div::Divergence
   status::Symbol
+  n::Int64
+  m::Int64
+  p::Int64
   fprob::IpoptProblem
   lambda::Array{Float64,1}
   x_ul::Array{Float64,1}
   x_lw::Array{Float64,1}
-##Sigma::MinimumDivergenceVariance
+  ## Precaching
+  Σ::Union(Array{PDMat, 1}, Nothing)
+  Ω::Union(Array{PDMat, 1}, Nothing)
+  H::Union(Array{PDMat, 1}, Nothing)
 end
-
-
-
-
 
 function MomentFunction(g_i::Function)
 
@@ -267,5 +268,5 @@ function md(mf::MomentFunction,
     ## println(fprob.x)
     ## println(fprob.obj_val)
 
-    return MinimumDivergenceProblem(mf, divergence, Ipopt.ApplicationReturnStatus[status], fprob, mult_g, mult_x_U, mult_x_L)
+    return MinimumDivergenceProblem(mf, divergence, Ipopt.ApplicationReturnStatus[status], n, m, k, fprob, mult_g, mult_x_U, mult_x_L, Nothing(), Nothing(), Nothing())
 end
