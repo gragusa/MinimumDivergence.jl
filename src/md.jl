@@ -1,10 +1,5 @@
-using ForwardDiff
-using Ipopt
-using ArrayViews
-using Divergences
-using ForwardDiff
-using PDMats
-using StatsBase
+global __p
+global __lambda
 
 ## Simplest API
 ## The only function that is passed is
@@ -21,6 +16,7 @@ using StatsBase
 ## Dg_n = function(theta::Vector, p::Vector) ...   m x k
 ## Dg_j = function(theta::Vector) ...              n x k
 ## H_n = function(theta::Vector, lambda::Vector, p::Vector) k x x
+
 
 function gettril(x::Array{Float64, 2})
     n,m = size(x)
@@ -59,9 +55,14 @@ type MomentFunction
     H_n::Function     ## return kxk (hessian of lambda'\sum p_i g_i
 end
 
+type MomentFunctionJacobian
+  ∇::AbstractMatrix
+end
 
 
-type MinimumDivergenceProblem
+abstract MDP
+
+type MinimumDivergenceProblem <: MDP
   mf::MomentFunction
   div::Divergence
   status::Symbol
@@ -73,15 +74,27 @@ type MinimumDivergenceProblem
   x_ul::Array{Float64,1}
   x_lw::Array{Float64,1}
   ## Precaching
+  ∇g_n::Union(Array{MomentFunctionJacobian, 1}, Nothing)
   Σ::Union(Array{PDMat, 1}, Nothing)
   Ω::Union(Array{PDMat, 1}, Nothing)
   H::Union(Array{PDMat, 1}, Nothing)
 end
 
+type MinimumDivergenceProblemPlain <: MDP
+  G::Array{Float64, 2}
+  div::Divergence
+  status::Symbol
+  n::Int64
+  m::Int64
+  fprob::IpoptProblem
+  lambda::Array{Float64,1}
+  x_ul::Array{Float64,1}
+  x_lw::Array{Float64,1}
+end
+
 function MomentFunction(g_i::Function)
 
     g_n(theta::Vector) = g_i(theta)'*__p
-    Dg_n = forwarddiff_jacobian(g_n, Float64, fadtype=:typed)
 
     function constraint_g_theta(theta::Vector)
         __p'*g_i(theta)*__lambda
@@ -91,6 +104,7 @@ function MomentFunction(g_i::Function)
         g_i(theta)*__lambda
     end
 
+    Dg_n = forwarddiff_jacobian(g_n, Float64, fadtype=:typed)
     Dg_j = forwarddiff_jacobian(constraint_g_lambda, Float64, fadtype=:typed)
     H_n  = forwarddiff_hessian(constraint_g_theta, Float64, fadtype=:typed)
 
@@ -268,5 +282,133 @@ function md(mf::MomentFunction,
     ## println(fprob.x)
     ## println(fprob.obj_val)
 
-    return MinimumDivergenceProblem(mf, divergence, Ipopt.ApplicationReturnStatus[status], n, m, k, fprob, mult_g, mult_x_U, mult_x_L, Nothing(), Nothing(), Nothing())
+    return MinimumDivergenceProblem(mf, divergence, Ipopt.ApplicationReturnStatus[status], n, m, k, fprob, mult_g, mult_x_U, mult_x_L, Nothing(), Nothing(), Nothing(), Nothing())
 end
+
+
+function md(G::Array{Float64,2},
+               divergence::Divergence;
+               print_level::Int64 = 0,
+               linear_solver::ASCIIString = "ma27",
+               hessian_approximation = "exact")
+
+    n, m = size(G)
+    u = ones(n)
+
+    gele::Int64 = n*(m+1)
+    hele::Int64 = n
+    ## This are the lower Triangular element of Hessian
+
+    function eval_f(u::Vector{Float64})
+        evaluate(divergence, u)
+    end
+
+    function eval_grad_f(u, grad_f)
+        for j=1:n
+            @inbounds grad_f[j] = gradient(divergence, u[j])
+        end
+    end
+
+    function eval_g(u, g)
+        @inbounds g[1:m]  = G'u
+        @inbounds g[m+1]  = sum(u)
+    end
+
+function eval_jac_g(
+    u,     # Current solution
+    mode,  # Either :Structure or :Values
+    rows,  # Sparsity structure - row indices
+    cols,  # Sparsity structure - column indices
+    val)   # The values of the Jacobian )
+
+  if mode == :Structure
+    for j = 1:m+1, kk = 1:n
+      @inbounds rows[kk+(j-1)*(n)] = j
+      @inbounds cols[kk+(j-1)*(n)] = kk
+    end
+  else
+    @simd for i = 1:n*m
+      @inbounds val[i] = G[i]
+    end
+
+    @simd for i = n*m+1:n*(m+1)
+      @inbounds val[i] = 1.0
+    end
+  end
+end
+
+
+  function eval_h(u, mode, rows, cols, obj_factor, lambda, values)
+    if mode == :Structure
+      @simd for j = 1:n
+        @inbounds rows[j] = j
+        @inbounds cols[j] = j
+      end
+    else
+      if obj_factor==0
+        @simd for j=1:n
+          @inbounds values[j] = 0.0
+        end
+      else
+        @simd for j=1:n
+          @inbounds values[j] = obj_factor*hessian(divergence, u[j])
+        end
+      end
+    end
+  end
+
+    g_L = [zeros(m), n];
+    g_U = [zeros(m), n];
+
+    x_L = zeros(n)
+    x_U = ones(n)*n
+
+    fprob = Ipopt.createProblem(
+                                n,
+                                x_L,
+                                x_U,
+                                m+1,
+                                g_L,
+                                g_U,
+                                gele,
+                                hele,
+                                eval_f,
+                                eval_g,
+                                eval_grad_f,
+                                eval_jac_g,
+                                eval_h)
+
+    fprob.x = ones(n)
+
+    mult_g = zeros(m+1)
+    mult_x_U = zeros(n)
+    mult_x_L = zeros(n)
+
+    ## ma27 (use the Harwell routine MA27)
+    ## ma57 (use the Harwell routine MA57)
+    ## ma77 (use the Harwell routine HSL_MA77)
+    ## ma86 (use the Harwell routine HSL_MA86)
+    ## ma97 (use the Harwell routine HSL_MA97)
+    ## pardiso (use the Pardiso package)
+    ## wsmp (use WSMP package)
+    ## mumps (use MUMPS package)
+
+    Ipopt.addOption(fprob, "derivative_test", "none");
+    Ipopt.addOption(fprob, "print_level", 0) #print_level);
+    Ipopt.addOption(fprob, "hessian_approximation", hessian_approximation)
+    Ipopt.addOption(fprob, "linear_solver", linear_solver);
+    status = Ipopt.solveProblem(fprob, mult_g, mult_x_U, mult_x_L);
+
+    return MinimumDivergenceProblemPlain(G, divergence, Ipopt.ApplicationReturnStatus[status], n, m, fprob, mult_g, mult_x_U, mult_x_L)
+end
+
+
+
+
+
+
+
+
+
+
+
