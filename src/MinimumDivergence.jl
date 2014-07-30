@@ -3,8 +3,8 @@ module MinimumDivergence
 #import Calculus: gradient, hessian
 importall Divergences
 
-using ForwardDiff
-import ForwardDiff.typed_fad_hessian
+#using ForwardDiff
+#import ForwardDiff.typed_fad_hessian
 using Ipopt
 using ArrayViews
 using ForwardDiff
