@@ -7,7 +7,7 @@ importall Divergences
 #import ForwardDiff.typed_fad_hessian
 using Ipopt
 using ArrayViews
-using ForwardDiff
+#using ForwardDiff
 using PDMats
 using StatsBase
 using Calculus
@@ -20,6 +20,7 @@ include("methods.jl")
 export MomentFunction,
        MinimumDivergenceProblem,
        md,
+       ivmd,
        obs,
        ncond,
        lambda,

@@ -438,6 +438,163 @@ end
 
 
 
+function ivmd(y::Array{Float64,2}, x::Array{Float64,2}, z::Array{Float64,2},
+              div::Divergence,
+              init_val::Array{Float64,1},
+              lb::Array{Float64, 1},
+              ub::Array{Float64, 1},
+              print_level::Int64 = 0,
+              linear_solver::ASCIIString = "ma27",
+              hessian_approximation = "exact")
+
+    n, k = size(x)
+    n, m = size(z)
+
+    u = [ones(n), init_val]
+
+    Hpl = zeros(n,k,m)
+    for j=1:m
+        Hpl[:,:,j] = -x.*z[:,j]
+    end
+
+    hele = n*k+n
+    gele::Int64 = (n+k)*(m+1)-k
+
+    function eval_f(u::Vector{Float64})
+        evaluate(div, u[1:n])
+    end
+
+    function eval_grad_f(u, grad_f)
+        for j=1:n
+            @inbounds grad_f[j] = gradient(div, u[j])
+        end
+        for j=(n+1):(n+k)
+            @inbounds grad_f[j] = 0.0
+        end
+    end
+
+    function eval_g(u, g)
+        theta   = u[(n+1):(n+k)]
+        p       = u[1:n]
+        @inbounds g[1:m]  = (z.*(y-x*theta))'p;
+        @inbounds g[m+1]  = sum(p);
+    end
+
+    function eval_jac_g(
+      u,     # Current solution
+      mode,  # Either :Structure or :Values
+      rows,  # Sparsity structure - row indices
+      cols,  # Sparsity structure - column indices
+      val)   # The values of the Jacobian )
+
+    if mode == :Structure
+      for j = 1:m+1, kk = 1:n+k
+        if !((kk > n) && (j==m+1))
+          @inbounds rows[kk+(j-1)*(n+k)] = j
+          @inbounds cols[kk+(j-1)*(n+k)] = kk
+        end
+      end
+    else
+      theta = u[(n+1):(n+k)]
+      p   = u[1:n]
+      gg    = z.*(y-x*theta)
+      dg    = -z'*(p.*x)
+      for j=1:m+1, i=1:n+k
+        if(j<=m && i<=n)
+          @inbounds val[i+(j-1)*(n+k)] = gg[i+(j-1)*(n)]
+        elseif (j<=m && i>n)
+          @inbounds val[i+(j-1)*(n+k)] = dg[j, i-n]
+        elseif (j>m && i<=n)
+          @inbounds val[i+(j-1)*(n+k)] = 1.0
+        end
+      end
+    end
+  end
+
+    function eval_h(u, mode, rows, cols, obj_factor, lambda, values)
+        if mode == :Structure
+            for j = 1:n
+                @inbounds rows[j] = j
+                @inbounds cols[j] = j
+            end
+            idx = n+1
+            for d = 1:n
+                for j = 1:k
+                    @inbounds rows[idx] = n+j
+                    @inbounds cols[idx] = d
+                    idx += 1
+                end
+            end
+        else
+            H = zeros(n, k)
+            for j = 1:m
+                H += view(Hpl, :, :, j)*lambda[j]
+            end
+            H = transpose(H)
+            if obj_factor==0
+                for j=1:n
+                    @inbounds values[j] = 0.0
+                end
+            else
+                for j=1:n
+                    @inbounds values[j] = obj_factor*hessian(div, u[j])
+                end
+            end
+            @inbounds values[n+1:n*k+n] = H[:]
+        end
+    end
+
+    g_L = [zeros(m), n];
+    g_U = [zeros(m), n];
+
+    x_L = [zeros(n),  lb];
+    x_U = [ones(n)*n, ub];
+
+    fprob = Ipopt.createProblem(
+                                n+k,
+                                x_L,
+                                x_U,
+                                m+1,
+                                g_L,
+                                g_U,
+                                (n+k)*(m+1)-k,
+                                hele,
+                                eval_f,
+                                eval_g,
+                                eval_grad_f,
+                                eval_jac_g,
+                                eval_h)
+
+    fprob.x = [ones(n), init_val];
+
+    mult_g = zeros(m+1)
+    mult_x_U = zeros(n+k)
+    mult_x_L = zeros(n+k)
+
+    ## ma27 (use the Harwell routine MA27)
+    ## ma57 (use the Harwell routine MA57)
+    ## ma77 (use the Harwell routine HSL_MA77)
+    ## ma86 (use the Harwell routine HSL_MA86)
+    ## ma97 (use the Harwell routine HSL_MA97)
+    ## pardiso (use the Pardiso package)
+    ## wsmp (use WSMP package)
+    ## mumps (use MUMPS package)
+
+    Ipopt.addOption(fprob, "derivative_test", "second-order");
+    Ipopt.addOption(fprob, "print_level", print_level);
+    Ipopt.addOption(fprob, "hessian_approximation", hessian_approximation);
+    Ipopt.addOption(fprob, "linear_solver", linear_solver);
+    status = Ipopt.solveProblem(fprob, mult_g, mult_x_U, mult_x_L);
+
+    ## println(Ipopt.ApplicationReturnStatus[status])
+    ## println(fprob.x)
+    ## println(fprob.obj_val)
+  g_i(theta::Vector) = z.*(y-x*theta)
+
+  return MinimumDivergenceProblem(MomentFunction(g_i), div, Ipopt.ApplicationReturnStatus[status], n, m, k, fprob, mult_g, mult_x_U, mult_x_L, Nothing(), Nothing(), Nothing(), Nothing())
+end
+
+
 
 
 
