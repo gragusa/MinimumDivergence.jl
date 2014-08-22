@@ -1,11 +1,3 @@
-# MinimumDivergence.jl
-
-[![Build Status](https://travis-ci.org/gragusa/MinimumDivergence.jl.svg?branch=master)](https://travis-ci.org/gragusa/MinimumDivergence.jl)
-
-
-## Examples
-
-```
 using Ipopt
 using ModelsGenerators
 using ArrayViews
@@ -13,7 +5,7 @@ using Divergences
 using MinimumDivergence
 
 srand(2)
-@time y, x, z  = randiv(100, k = 2)
+@time y, x, z  = randiv(100, k = 2);
 
 n, k = size(x)
 n, m = size(z)
@@ -31,7 +23,12 @@ div = ReverseKullbackLeibler()
       "mumps",
       "exact")
 
-mf = MomentFunction(g_i, MinimumDivergence.TruncatedKernel(3.))
+@time vcov!(out)
+@time MinimumDivergence.hessian!(out)
+
+
+
+mf = MomentFunction(g_i, MinimumDivergence.TruncatedKernel(0.))
 
 @time out=md(mf,
       div,
@@ -42,4 +39,15 @@ mf = MomentFunction(g_i, MinimumDivergence.TruncatedKernel(3.))
       "ma27",
       "exact")
 
-```
+@time vcov!(out);
+
+mf = MomentFunction(g_i, MinimumDivergence.BartlettKernel(0.))
+
+@time out=md(mf,
+      div,
+      zeros(k),
+      -10*ones(k),
+      10*ones(k),
+      0,
+      "ma27",
+      "exact")

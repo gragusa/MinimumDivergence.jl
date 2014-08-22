@@ -31,36 +31,85 @@ function gettril(x::Array{Float64, 2})
   return a
 end
 
-# function ForwardDiff.typed_fad_hessian{T<:Real}(f::Function, ::Type{T})
-#   g(x::Vector{T}) = mf_hessian(f(FADHessian(x)))
-#   return g
-# end
 
-# function mf_hessian{T<:Real, n}(x::Array{FADHessian{T, n},1})
-#   y = Array(T, n, n)
-#   k = 1
-#   for i in 1:n
-#     for j in 1:i
-#       y[i, j] = x[1].h[k]
-#       k += 1
-#     end
-#   end
-#   y
-# end
+abstract MDP
+abstract SmoothingKernels
+
+immutable WhiteKernel <: SmoothingKernels
+    St::Real
+    κ₁::Real
+    κ₂::Real
+end    
+
+WhiteKernel() = WhiteKernel(1.0, 1.0, 1.0)
+
+immutable TruncatedKernel <: SmoothingKernels
+    ξ::Real
+    St::Real
+    SmoothingFunction::Function
+    κ₁::Real
+    κ₂::Real
+end
+
+immutable BartlettKernel <: SmoothingKernels
+    ξ::Real
+    St::Real
+    SmoothingFunction::Function
+    κ₁::Real
+    κ₂::Real
+end
+
+function TruncatedKernel(ξ::Real)
+    function SmoothingFunction(G::Array{Float64, 2})
+        T, M = size(G)
+        nG   = zeros(T, M)        
+        for m=1:M
+            for t=1:T
+			             low = max((t-T), -ξ)
+			             high = min(t-1, ξ)
+					           for s = low:high
+                    @inbounds nG[t, m] += G[t-s, m]
+                end
+            end
+        end
+        return(nG/(2.0*ξ+1.0))
+    end
+    TruncatedKernel(ξ, (2.0*ξ+1.0)/2.0, SmoothingFunction, 1.0, 1.0)
+end 
+
+function BartlettKernel(ξ::Real)
+    function SmoothingFunction(G::Array{Float64, 2})
+        T, M = size(G)
+        nG   = zeros(T, M)
+        St   = (2.0*ξ+1.0)/2.0
+        for m=1:M
+            for t=1:T
+			             low = max((t-T), -ξ)
+			             high = min(t-1, ξ)
+					           for s = low:high
+                    κ = 1.0-s/St
+                    @inbounds nG[t, m] += κ*G[t-s, m]
+                end
+            end
+        end
+        return(nG/(2*ξ+1))
+    end
+    BartlettKernel(ξ, (2.0*ξ+1.0)/2.0, SmoothingFunction, 1.0, 2.0/3.0)
+end 
 
 type MomentFunction
   g_i::Function
   Dg_n::Function    ## return k x m
   Dg_j::Function    ## return n x k
   H_n::Function     ## return kxk (hessian of lambda'\sum p_i g_i
+  ## Smothing
+  sf::SmoothingKernels
 end
 
 type MomentFunctionJacobian
   ∇::AbstractMatrix
 end
 
-
-abstract MDP
 
 type MinimumDivergenceProblem <: MDP
   mf::MomentFunction
@@ -77,7 +126,7 @@ type MinimumDivergenceProblem <: MDP
   ∇g_n::Union(Array{MomentFunctionJacobian, 1}, Nothing)
   Σ::Union(Array{PDMat, 1}, Nothing)
   Ω::Union(Array{PDMat, 1}, Nothing)
-  H::Union(Array{PDMat, 1}, Nothing)
+  H::Union(PDMat, Nothing)
 end
 
 type MinimumDivergenceProblemPlain <: MDP
@@ -92,59 +141,56 @@ type MinimumDivergenceProblemPlain <: MDP
   x_lw::Array{Float64,1}
 end
 
-# function MomentFunction(g_i::Function)
-
-#     g_n(theta::Vector) = g_i(theta)'*__p
-
-#     function constraint_g_theta(theta::Vector)
-#         __p'*g_i(theta)*__lambda
-#     end
-
-#     function constraint_g_lambda(theta::Vector)
-#         g_i(theta)*__lambda
-#     end
-
-#     Dg_n = forwarddiff_jacobian(g_n, Float64, fadtype=:typed)
-#     Dg_j = forwarddiff_jacobian(constraint_g_lambda, Float64, fadtype=:typed)
-#     H_n  = forwarddiff_hessian(constraint_g_theta, Float64, fadtype=:typed)
-
-#     MomentFunction(g_i, Dg_n, Dg_j, H_n)
-# end
-
 
 function MomentFunction(g_i::Function)
-
   g_n(theta::Vector, p::Vector) = g_i(theta)'*p
-
-
-
   pgl_n(theta::Vector, p::Vector, λ::Vector) = (p'*g_i(theta)*λ)[1]
   gl_i(theta::Vector, λ::Vector) = g_i(theta)*λ
-
   wg_n(theta::Vector) = g_n(theta, __p)
   wpgl_n(theta::Vector) = pgl_n(theta, __p, __lambda)
   wgl_i(theta::Vector) = gl_i(theta, __lambda)
-
   Dg_n(theta::Vector) = Calculus.jacobian(wg_n, theta, :central)
   Dg_j(theta::Vector) = Calculus.jacobian(wgl_i, theta, :central)
   H_n(theta::Vector)  = Calculus.hessian(wpgl_n, theta)
-
-  #     Dg_n = forwarddiff_jacobian(wg_n, Float64, fadtype=:typed)
-  #     Dg_j = forwarddiff_jacobian(wgl_i, Float64, fadtype=:typed)
-  #     H_n  = forwarddiff_hessian(wpgl_n, Float64, fadtype=:typed)
-
-  MomentFunction(g_i, Dg_n, Dg_j, H_n)
+  MomentFunction(g_i, Dg_n, Dg_j, H_n, WhiteKernel())
 end
 
+
+function MomentFunction(g_i::Function, sf::SmoothingKernels)
+    gᵢ(theta::Vector) = sf.SmoothingFunction(g_i(theta))    
+    g_n(theta::Vector, p::Vector) = gᵢ(theta)'*p
+    pgl_n(theta::Vector, p::Vector, λ::Vector) = (p'*gᵢ(theta)*λ)[1]
+    gl_i(theta::Vector, λ::Vector) = gᵢ(theta)*λ
+    wg_n(theta::Vector) = g_n(theta, __p)
+    wpgl_n(theta::Vector) = pgl_n(theta, __p, __lambda)
+    wgl_i(theta::Vector) = gl_i(theta, __lambda)
+    Dg_n(theta::Vector) = Calculus.jacobian(wg_n, theta, :central)
+    Dg_j(theta::Vector) = Calculus.jacobian(wgl_i, theta, :central)
+    H_n(theta::Vector)  = Calculus.hessian(wpgl_n, theta)
+    MomentFunction(gᵢ, Dg_n, Dg_j, H_n, sf)
+end
 
 function MomentFunction(g_i::Function, Dg_n::Function, Dg_j::Function)
   g_n(theta::Vector, p::Vector) = g_i(theta)'*p
   pgl_n(theta::Vector, p::Vector, λ::Vector) = p'*g_i(theta)*λ
   wpgl_n(theta::Vector) = pgl_n(theta, __p, __lambda)
   H_n(theta::Vector)  = Calculus.hessian(wpgl_n, theta)
-  MomentFunction(g_i, Dg_n, Dg_j, H_n)
+  MomentFunction(g_i, Dg_n, Dg_j, H_n, WhiteKernel())
 end
 
+
+
+## This allow things like this
+##
+## g(theta) = z.*(y-x*theta)
+##
+## \partial g_i(theta)'*p/ \partial \theta = \nabla \sum p_i \nabla g_i(\theta) = -(x.*p)'*z (k x m)
+## 
+##
+## 
+
+
+## function IVMomentFunction()
 
 function md(mf::MomentFunction,
             divergence::Divergence,
@@ -175,12 +221,12 @@ function md(mf::MomentFunction,
   ## This are the lower Triangular element of Hessian
 
   function eval_f(u::Vector{Float64})
-    evaluate(divergence, u[1:n])
+    Divergences.evaluate(divergence, u[1:n])
   end
 
   function eval_grad_f(u, grad_f)
     for j=1:n
-      @inbounds grad_f[j] = gradient(divergence, u[j])
+      @inbounds grad_f[j] = Divergences.gradient(divergence, u[j])
     end
     for j=(n+1):(n+k)
       @inbounds grad_f[j] = 0.0
@@ -261,7 +307,7 @@ function md(mf::MomentFunction,
         end
       else
         for j=1:n
-          @inbounds values[j] = obj_factor*hessian(divergence, u[j])
+          @inbounds values[j] = obj_factor*Divergences.hessian(divergence, u[j])
         end
       end
       @inbounds values[n+1:n*k+n] = H[:]
@@ -338,7 +384,7 @@ function md(G::Array{Float64,2},
 
   function eval_grad_f(u, grad_f)
     for j=1:n
-      @inbounds grad_f[j] = gradient(divergence, u[j])
+      @inbounds grad_f[j] = Divergences.gradient(divergence, u[j])
     end
   end
 
@@ -384,7 +430,7 @@ function md(G::Array{Float64,2},
         end
       else
         @simd for j=1:n
-          @inbounds values[j] = obj_factor*hessian(divergence, u[j])
+          @inbounds values[j] = obj_factor*Divergences.hessian(divergence, u[j])
         end
       end
     end
@@ -466,7 +512,7 @@ function ivmd(y::Array{Float64,2}, x::Array{Float64,2}, z::Array{Float64,2},
 
     function eval_grad_f(u, grad_f)
         for j=1:n
-            @inbounds grad_f[j] = gradient(div, u[j])
+            @inbounds grad_f[j] = Divergences.gradient(div, u[j])
         end
         for j=(n+1):(n+k)
             @inbounds grad_f[j] = 0.0

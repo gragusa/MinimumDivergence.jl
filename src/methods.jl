@@ -1,7 +1,15 @@
 
+bandwidth(md::MinimumDivergenceProblem) = md.mf.sf.St
+κ₁(md::MinimumDivergenceProblem) = md.mf.sf.κ₁
+κ₂(md::MinimumDivergenceProblem) = md.mf.sf.κ₂
+
+bandwidth(mf::MomentFunction) = mf.sf.St
+κ₁(mf::MomentFunction) = mf.sf.κ₁
+κ₂(mf::MomentFunction) = mf.sf.κ₂
+
+
 nobs(md::MDP) = md.n
 ncond(md::MDP) = md.m
-
 
 npar(md::MinimumDivergenceProblem) = md.p
 npar(md::MinimumDivergenceProblemPlain) = 0.0
@@ -48,7 +56,7 @@ vcov(md::MinimumDivergenceProblem, vtype::Symbol) = vtype==:unweighted ? md.Σ[2
 
 
 stderr(md::MinimumDivergenceProblem) = stderr(md::MinimumDivergenceProblem, :weighted)
-stderr(md::MinimumDivergenceProblem, vtype=:Symbol) = vtype==:unweighted ? sqrt(diag(md.Σ[1])) : sqrt(diag(md.Σ[1]))
+stderr(md::MinimumDivergenceProblem, vtype=:Symbol) = vtype==:unweighted ? sqrt(diag(md.Σ[2])) : sqrt(diag(md.Σ[1]))
 
 
 
@@ -62,24 +70,26 @@ function mfjacobian!(md::MinimumDivergenceProblem)
   __p = ones(nobs(md))
   out[1] = MomentFunctionJacobian(md.mf.Dg_n(θ))
   __p = weights(md)
-  out[2] = MomentFunctionJacobian(md.mf.Dg_n(θ))
+  out[2] = MomentFunctionJacobian(md.mf.Dg_n(θ)./κ₁(md))
+  ## This is devided by κ₁  
   md.∇g_n = out
 end
-
-
 
 function meat!(md::MinimumDivergenceProblem)
     global __p
     if typeof(md.∇g_n)==Nothing
       mfjacobian!(md)
     end
+    ## Adjustment constant
+    γ = md.mf.sf.St/md.mf.sf.κ₂
+            
     θ   = coef(md)
     __p = ones(nobs(md))
     uw_g_i = md.mf.g_i(θ)
     __p = weights(md)
     w_g_i = md.mf.g_i(θ)
-    md.Ω =  [PDMat(uw_g_i'*uw_g_i), PDMat(w_g_i'*w_g_i)]
-  end
+    md.Ω =  [PDMat(γ.*uw_g_i'*uw_g_i), PDMat(γ.*w_g_i'*w_g_i)]
+end
 
 
 
@@ -115,3 +125,19 @@ function hessian(mdobj::MinimumDivergenceProblem, theta_0::Array{Float64,1})
   obj(theta) = obj_val(md(mdobj.mf.g_i(theta), mdobj.div))
   PDMat(Calculus.hessian(obj, theta_0))
 end
+
+
+function show(io::IO, obj::MinimumDivergenceProblem)
+    println(io,"$(typeof(obj)):\n\nCoefficients:", "\n", coef(obj))
+end
+
+
+## function coeftable(mm::MinimumDivergenceProblem)
+##     cc = coef(mm)
+## #    se = stderr(mm)
+## #    tt = cc ./ se
+##     ## CoefTable(hcat(cc,se,tt,ccdf(FDist(1, df_residual(mm)), abs2(tt))),
+##     ##           ["Estimate","Std.Error","t value", "Pr(>|t|)"],
+##     ##           ["θ\_$i" for i = 1:length(cc)], 4)
+##     println(["θ\_$i: cc[$i]" for i = 1:length(cc)])
+## end

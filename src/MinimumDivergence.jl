@@ -1,16 +1,20 @@
 module MinimumDivergence
 
-#import Calculus: gradient, hessian
-importall Divergences
 
-#using ForwardDiff
-#import ForwardDiff.typed_fad_hessian
+using Calculus
+using Divergences
+
 using Ipopt
 using ArrayViews
-#using ForwardDiff
 using PDMats
 using StatsBase
-using Calculus
+
+
+
+import Calculus.gradient, Calculus.hessian
+import Divergences: Divergence
+import Base.show
+import StatsBase: coef, coeftable, confint, deviance, loglikelihood, nobs, stderr, vcov
 
 
 
@@ -21,7 +25,7 @@ export MomentFunction,
        MinimumDivergenceProblem,
        md,
        ivmd,
-       obs,
+       nobs,
        ncond,
        lambda,
        weights,
@@ -29,9 +33,13 @@ export MomentFunction,
        mfjacobian!,
        meat!,
        vcov!,
+       vcov,
        coef,
        jacobian,
-       hessian
+       hessian,
+       stderr,
+       show
+       
 
 end # module
 
