@@ -11,8 +11,8 @@ using StatsBase
 
 
 
-import Calculus.gradient, Calculus.hessian
-import Divergences: Divergence
+import Calculus: gradient
+import Divergences: Divergence, hessian
 import Base.show
 import StatsBase: coef, coeftable, confint, deviance, loglikelihood, nobs, stderr, vcov
 
@@ -39,7 +39,7 @@ export MomentFunction,
        hessian,
        stderr,
        show
-       
+
 
 end # module
 
