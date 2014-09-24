@@ -56,8 +56,15 @@ vcov(md::MinimumDivergenceProblem, vtype::Symbol) = vtype==:unweighted ? md.Σ[2
 
 
 stderr(md::MinimumDivergenceProblem) = stderr(md::MinimumDivergenceProblem, :weighted)
-stderr(md::MinimumDivergenceProblem, vtype=:Symbol) = vtype==:unweighted ? sqrt(diag(md.Σ[2])) : sqrt(diag(md.Σ[1]))
 
+## function stderr(md::MinimumDivergenceProblem, vtype=:Symbol)
+##     if vtype==:unweighted
+##         sqrt(diag(md.Σ[2]))
+##     elseif vtype==:weighted
+##         sqrt(diag(md.Σ[1]))
+##     elseif vtype==:hessian
+##         md.Σ[1]
+## end 
 
 
 function mfjacobian!(md::MinimumDivergenceProblem)
