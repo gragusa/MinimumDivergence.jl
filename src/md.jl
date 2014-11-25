@@ -3,6 +3,15 @@ global __lambda
 
 ## Think about the Mathprog base
 
+
+## TODO:
+
+## 1) Rename the moment function type
+## 2) Test weather we can use Automatic diff
+## 3) Penalty in using MathProgBase
+## 4) Move the smoothing stuff into different file and eventually into VCOV.jl, ##    where it can be used to calculate the variances as in Smith (2012) 
+
+
 ## Simplest API
 ## The only function that is passed is
 ##
