@@ -65,9 +65,9 @@ function TruncatedKernel(ξ::Real)
         nG   = zeros(T, M)        
         for m=1:M
             for t=1:T
-			             low = max((t-T), -ξ)
-			             high = min(t-1, ξ)
-					           for s = low:high
+                low = max((t-T), -ξ)
+                high = min(t-1, ξ)
+                for s = low:high
                     @inbounds nG[t, m] += G[t-s, m]
                 end
             end
@@ -98,10 +98,10 @@ function BartlettKernel(ξ::Real)
 end 
 
 type MomentFunction
-  g_i::Function
-  Dg_n::Function    ## return k x m
-  Dg_j::Function    ## return n x k
-  H_n::Function     ## return kxk (hessian of lambda'\sum p_i g_i
+  g_i::Function     ## The moment function n x m
+  Dg_n::Function    ## return k x m (Jacobian of \sum_{i=1}^n p_i g_i)
+  Dg_j::Function    ## return n x k (Jacobian of  g_i\lambda)
+  H_n::Function     ## return kxk (hessian of \sum_{i=1}^n p_i g_i\lambda)
   ## Smothing
   sf::SmoothingKernels
 end
@@ -177,8 +177,6 @@ function MomentFunction(g_i::Function, Dg_n::Function, Dg_j::Function)
   H_n(theta::Vector)  = Calculus.hessian(wpgl_n, theta)
   MomentFunction(g_i, Dg_n, Dg_j, H_n, WhiteKernel())
 end
-
-
 
 ## This allow things like this
 ##
@@ -355,13 +353,16 @@ function md(mf::MomentFunction,
   Ipopt.addOption(fprob, "print_level", print_level);
   Ipopt.addOption(fprob, "hessian_approximation", hessian_approximation);
   Ipopt.addOption(fprob, "linear_solver", linear_solver);
-  status = Ipopt.solveProblem(fprob, mult_g, mult_x_U, mult_x_L);
+  status = Ipopt.solveProblem(fprob);
 
   ## println(Ipopt.ApplicationReturnStatus[status])
   ## println(fprob.x)
   ## println(fprob.obj_val)
 
-  return MinimumDivergenceProblem(mf, divergence, Ipopt.ApplicationReturnStatus[status], n, m, k, fprob, mult_g, mult_x_U, mult_x_L, Nothing(), Nothing(), Nothing(), Nothing())
+  return MinimumDivergenceProblem(mf, divergence,
+                                  Ipopt.ApplicationReturnStatus[status],
+                                  n, m, k, fprob, mult_g, mult_x_U, mult_x_L,
+                                  Nothing(), Nothing(), Nothing(), Nothing())
 end
 
 
@@ -476,9 +477,11 @@ function md(G::Array{Float64,2},
   Ipopt.addOption(fprob, "print_level", 0) #print_level);
   Ipopt.addOption(fprob, "hessian_approximation", hessian_approximation)
   Ipopt.addOption(fprob, "linear_solver", linear_solver);
-  status = Ipopt.solveProblem(fprob, mult_g, mult_x_U, mult_x_L);
+  status = Ipopt.solveProblem(fprob);
 
-  return MinimumDivergenceProblemPlain(G, divergence, Ipopt.ApplicationReturnStatus[status], n, m, fprob, mult_g, mult_x_U, mult_x_L)
+  return MinimumDivergenceProblemPlain(G, divergence,
+                                       Ipopt.ApplicationReturnStatus[status],
+                                       n, m, fprob, mult_g, mult_x_U, mult_x_L)
 end
 
 
@@ -637,7 +640,10 @@ function ivmd(y::Array{Float64,2}, x::Array{Float64,2}, z::Array{Float64,2},
     ## println(fprob.obj_val)
   g_i(theta::Vector) = z.*(y-x*theta)
 
-  return MinimumDivergenceProblem(MomentFunction(g_i), div, Ipopt.ApplicationReturnStatus[status], n, m, k, fprob, mult_g, mult_x_U, mult_x_L, Nothing(), Nothing(), Nothing(), Nothing())
+  return MinimumDivergenceProblem(MomentFunction(g_i), div,
+                                  Ipopt.ApplicationReturnStatus[status],
+                                  n, m, k, fprob, mult_g, mult_x_U, mult_x_L,
+                                  Nothing(), Nothing(), Nothing(), Nothing())
 end
 
 
