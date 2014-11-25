@@ -1,6 +1,8 @@
 global __p
 global __lambda
 
+## Think about the Mathprog base
+
 ## Simplest API
 ## The only function that is passed is
 ##
