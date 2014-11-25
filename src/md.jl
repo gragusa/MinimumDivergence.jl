@@ -366,8 +366,8 @@ function md(mf::MomentFunction,
   Ipopt.addOption(fprob, "print_level", print_level);
   Ipopt.addOption(fprob, "hessian_approximation", hessian_approximation);
   Ipopt.addOption(fprob, "linear_solver", linear_solver);
-  status = Ipopt.solveProblem(fprob, mult_g, mult_x_U, mult_x_L);
-
+  #status = Ipopt.solveProblem(fprob, mult_g, mult_x_U, mult_x_L);
+  status = Ipopt.solveProblem(fprob);
   ## println(Ipopt.ApplicationReturnStatus[status])
   ## println(fprob.x)
   ## println(fprob.obj_val)
@@ -487,8 +487,8 @@ function md(G::Array{Float64,2},
   Ipopt.addOption(fprob, "print_level", 0) #print_level);
   Ipopt.addOption(fprob, "hessian_approximation", hessian_approximation)
   Ipopt.addOption(fprob, "linear_solver", linear_solver);
-  status = Ipopt.solveProblem(fprob, mult_g, mult_x_U, mult_x_L);
-
+  #status = Ipopt.solveProblem(fprob, mult_g, mult_x_U, mult_x_L);
+  status = Ipopt.solveProblem(fprob);
   return MinimumDivergenceProblemPlain(G, divergence, Ipopt.ApplicationReturnStatus[status], n, m, fprob, mult_g, mult_x_U, mult_x_L)
 end
 
