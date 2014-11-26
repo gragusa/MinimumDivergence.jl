@@ -32,11 +32,16 @@ out=md(mf,
       "mumps",
       "exact")
 
+
+
+using MinimumDivergence
+using Ipopt
 using ModelsGenerators
 using ForwardDiff
 y, x, z = randiv(k=2)
 g(θ) = z.*(y-x*θ)
-mf = MomentFunction(g, :dual)
+mf = MomentFunction(g, :dual, 100, 6, 2)
+MinimumDivergence.mdtest(mf, KullbackLeibler(), [.1,.1], [-2, -2.], [2.,2]; solver = IpoptSolver())
 
 
 

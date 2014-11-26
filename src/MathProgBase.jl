@@ -1,10 +1,3 @@
-import MathProgBase.MathProgSolverInterface
-
-type MinimumDivergenceProblem <: MathProgSolverInterface.AbstractNLPEvaluator
-end
-
-typealias MDP MinimumDivergenceProblem
-
 function MathProgSolverInterface.initialize(d::MDP, rf::Vector{Symbol})
     for feat in rf
         if !(feat in [:Grad, :Jac, :Hess])
@@ -16,57 +9,72 @@ function MathProgSolverInterface.initialize(d::MDP, rf::Vector{Symbol})
 end
 
 MathProgSolverInterface.features_available(d::MDP) = [:Grad, :Jac, :Hess]
-MathProgSolverInterface.eval_f(d::MDP, u) = Divergences.evaluate(divergence, u[1:n])
+MathProgSolverInterface.eval_f(d::MDP, u) = Divergences.evaluate(d.div, u[1:d.nobs])
 
 function MathProgSolverInterface.eval_g(d::MDP, g, u)
-    θ   = u[(nobs+1):(nobs+npar)]
-    p   = u[1:nobs]
-    @inbounds g[1:nmom]  = mf.gn(θ)
-    @inbounds g[nmom+1]  = sum(p)
+  n = d.nobs
+  k = d.npar
+  m = d.nmom
+  θ   = u[(n+1):(n+k)]
+  p   = u[1:n]
+  @inbounds g[1:m]  = d.momf.sn(θ, p)
+  @inbounds g[m+1]  = sum(p)
 end
 
 function MathProgSolverInterface.eval_grad_f(d::MDP, grad_f, u)
-    for j=1:nobs
-      @inbounds grad_f[j] = Divergences.gradient(divergence, u[j])
-    end
-    for j=(nobs+1):(n+npar)
-      @inbounds grad_f[j] = 0.0
-    end
+  n = d.nobs
+  k = d.npar
+  m = d.nmom
+
+  for j=1:n
+    @inbounds grad_f[j] = Divergences.gradient(d.div, u[j])
+  end
+  for j=(n+1):(n+k)
+    @inbounds grad_f[j] = 0.0
+  end
 end
 
-function MathProgSolverInterface.jac_structure(d::MDP) 
-  rows = Array(Float64, gele)
-  cols = Array(Float64, gele)
-  for j = 1:nmom+1, r = 1:nobs+npar
+function MathProgSolverInterface.jac_structure(d::MDP)   
+  n = d.nobs
+  k = d.npar
+  m = d.nmom
+
+  rows = Array(Int64, d.gele)
+  cols = Array(Int64, d.gele)
+  for j = 1:m+1, r = 1:n+k
         if !((r > n) && (j==m+1))
-          @inbounds rows[r+(j-1)*(nobs+npar)] = j
-          @inbounds cols[r+(j-1)*(nobs+npar)] = r
+          @inbounds rows[r+(j-1)*(n+k)] = j
+          @inbounds cols[r+(j-1)*(n+k)] = r
         end
       end
   rows, cols
 end
 
 function MathProgSolverInterface.hesslag_structure(d::MDP) 
-  rows = Array(Float64, hele)
-  cols = Array(Float64, hele)
-  for j = 1:nobs
+  n = d.nobs
+  k = d.npar
+  m = d.nmom
+
+  rows = Array(Int64, d.hele)
+  cols = Array(Int64, d.hele)
+  for j = 1:n
     @inbounds rows[j] = j
     @inbounds cols[j] = j
   end
-  idx = nobs+1
+  idx = n+1
 
-  for d = 1:nobs
-    for j = 1:npar
-      @inbounds rows[idx] = nobs+j
-      @inbounds cols[idx] = d
+  for s = 1:n
+    for j = 1:k
+      @inbounds rows[idx] = n+j
+      @inbounds cols[idx] = s
       idx += 1
     end
   end
 
-  for j = 1:npar
-    for d = 1:j
-      @inbounds rows[idx] = nobs+j
-      @inbounds cols[idx] = nobs+d
+  for j = 1:k
+    for s = 1:j
+      @inbounds rows[idx] = n+j
+      @inbounds cols[idx] = n+s
       idx += 1
     end
   end
@@ -74,40 +82,49 @@ function MathProgSolverInterface.hesslag_structure(d::MDP)
 end 
 
 function MathProgSolverInterface.eval_jac_g(d::MDP, J, u)  
-  __p   = u[1:nobs]
-  θ     = u[(nobs+1):(nobs+npar)]
-  g     = mf.sᵢ(θ)
-  ∂gn    = mf.∂gn(theta)
-  
-  for j=1:m+1, i=1:nobs+npar
-    if(j<=m && i<=nobs)
-      @inbounds J[i+(j-1)*(nobs+npar)] = g[i+(j-1)*nobs]
-    elseif (j<=m && i>n)
-      @inbounds J[i+(j-1)*(nobs+npar)] = ∂gn[j, i-nobs]
-    elseif (j>m && i<=n)
-      @inbounds J[i+(j-1)*(nobs+npar)] = 1.0
-    end
+ n = d.nobs
+ k = d.npar
+ m = d.nmom
+
+ global __p    = u[1:n]
+ θ      = u[(n+1):(n+k)]
+ g      = d.momf.sᵢ(θ)
+ ∂∑pᵢsᵢ = d.momf.∂∑pᵢsᵢ(θ)
+
+ for j=1:m+1, i=1:n+k
+  if(j<=m && i<=n)
+    @inbounds J[i+(j-1)*(n+k)] = g[i+(j-1)*n]
+  elseif (j<=m && i>n)
+    @inbounds J[i+(j-1)*(n+k)] = ∂∑pᵢsᵢ[j, i-n]
+  elseif (j>m && i<=n)
+    @inbounds J[i+(j-1)*(n+k)] = 1.0
   end
+end
 end
 
 function MathProgSolverInterface.eval_hesslag(d::MDP, H, u, σ, λ)
-  __p  = u[1:nobs]
-  θ    = u[(nobs+1):(nobs+npar)]      
-  __λ  = λ[1:nmom]
+  n = d.nobs
+  k = d.npar
+  m = d.nmom
 
-  ∂g1  = transpose(mf.∂g1(θ))
+  global __p  = u[1:n]
+  global __λ  = λ[1:m]
+  θ           = u[(n+1):(n+k)]      
+  
+
+  ∂sᵢλ = transpose(d.momf.∂sᵢλ(θ))
 
   if σ==0
-    for j=1:nobs
+    for j=1:n
       @inbounds H[j] = 0.0
     end
   else
     for j=1:n
-      @inbounds H[j] = σ*Divergences.hessian(divergence, u[j])
+      @inbounds H[j] = σ*Divergences.hessian(d.div, u[j])
     end
   end
-  @inbounds H[nobs+1:nobs*npar+nobs] = ∂g1[:]
-  @inbounds H[nobs*npar+nobs+1:hele] = gettril(mf.∂²g2(θ))
+  @inbounds H[n+1:n*k+n] = ∂sᵢλ[:]
+  @inbounds H[n*k+n+1:d.hele] = gettril(d.momf.∂²sᵢλ(θ))
 end
 
 
@@ -119,26 +136,30 @@ function mdtest(mf::MomentFunction,
 
     model = MathProgSolverInterface.model(solver)
 
-    npar = length(θ₀)
-    nobs, nmom = size(mf.sᵢ(θ₀))
+    m = mf.nmom
+    n = mf.nobs 
+    k = mf.npar
 
-    u₀ = [ones(nobs), θ₀]
+    u₀ = [ones(n), θ₀]
 
-    gele::Int64 = int((nobs+npar)*(nmom+1)-npar)
-    hele::Int64 = int(nobs*npar + nobs + (npar+1)*npar/2)
+    gele = int((n+k)*(m+1)-k)
+    hele = int(n*k + n + (k+1)*k/2)
 
+    # lb = [-2., -2]
+    # ub = [2, 2.]
+    g_L = [zeros(m), n];
+    g_U = [zeros(m), n];
 
-    g_L = [zeros(nmom), nobs];
-    g_U = [zeros(nmom), nobs];
-
-    u_L = [zeros(nobs),  lb];
-    u_U = [ones(nobs)*nobs, ub];
+    u_L = [zeros(n),  lb];
+    u_U = [ones(n)*n, ub];
     # l = [1,1,1,1]
     # u = [5,5,5,5]
     # lb = [25, 40]
     # ub = [Inf, 40]
-    MathProgSolverInterface.loadnonlinearproblem!(model, nmom+1, npar, 
-                                                  g_L, g_U, u_L, u_U, :Min, MDP())
+    MdProb = MinimumDivergenceProblem(mf, div, n, m, k, gele, hele, Array(Float64, n), Array(Float64, m+1)) 
+    
+
+    MathProgSolverInterface.loadnonlinearproblem!(model, n+k, m+1, u_L, u_U, g_L, g_U, :Min, MdProb)
     
     MathProgSolverInterface.setwarmstart!(model, u₀)
 
@@ -148,8 +169,11 @@ function mdtest(mf::MomentFunction,
     # @test stat == :Optimal
     uᵒ = MathProgSolverInterface.getsolution(model)
     Qᵒ = MathProgSolverInterface.getobjval(model) 
+    (MathProgSolverInterface, uᵒ, Qᵒ)
 
 end
+
+
 
 
 
