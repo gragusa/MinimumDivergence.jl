@@ -32,12 +32,23 @@ out=md(mf,
       "mumps",
       "exact")
 
+using ModelsGenerators
+using ForwardDiff
+y, x, z = randiv(k=2)
+g(θ) = z.*(y-x*θ)
+mf = MomentFunction(g, :dual)
+
+
+
+
+
+
 ## Time series
 ## Small Monte-Carlo
 sim = 1000
 Β = zeros(sim, 2)
 
-@time y, x, z  = randiv_ts(100);
+@time y, x, z  = randiv_ts(128);
 
 g_i(theta)  = z.*(y-x*theta)
 mf = MomentFunction(g_i, MinimumDivergence.BartlettKernel(1.))

@@ -1,5 +1,5 @@
-global __p
-global __lambda
+# global __p
+# global __lambda
 
 ## Think about the Mathprog base
 
@@ -29,179 +29,48 @@ global __lambda
 ## H_n = function(theta::Vector, lambda::Vector, p::Vector) k x x
 
 
-function gettril(x::Array{Float64, 2})
-  n,m = size(x)
-  a = zeros(convert(Int, n.*(n+1)/2))
-  k::Int = 1
-  for i = 1:n
-    for j = 1:i
-      a[k] = x[i, j]
-      k += 1
-    end
-  end
-  return a
-end
 
 
-abstract MDP
-abstract SmoothingKernels
 
-immutable WhiteKernel <: SmoothingKernels
-    St::Real
-    κ₁::Real
-    κ₂::Real
-end    
-
-WhiteKernel() = WhiteKernel(1.0, 1.0, 1.0)
-
-immutable TruncatedKernel <: SmoothingKernels
-    ξ::Real
-    St::Real
-    SmoothingFunction::Function
-    κ₁::Real
-    κ₂::Real
-end
-
-immutable BartlettKernel <: SmoothingKernels
-    ξ::Real
-    St::Real
-    SmoothingFunction::Function
-    κ₁::Real
-    κ₂::Real
-end
-
-function TruncatedKernel(ξ::Real)
-    function SmoothingFunction(G::Array{Float64, 2})
-        T, M = size(G)
-        nG   = zeros(T, M)        
-        for m=1:M
-            for t=1:T
-			             low = max((t-T), -ξ)
-			             high = min(t-1, ξ)
-					           for s = low:high
-                    @inbounds nG[t, m] += G[t-s, m]
-                end
-            end
-        end
-        return(nG/(2.0*ξ+1.0))
-    end
-    TruncatedKernel(ξ, (2.0*ξ+1.0)/2.0, SmoothingFunction, 1.0, 1.0)
-end 
-
-function BartlettKernel(ξ::Real)
-    function SmoothingFunction(G::Array{Float64, 2})
-        T, M = size(G)
-        nG   = zeros(T, M)
-        St   = (2.0*ξ+1.0)/2.0
-        for m=1:M
-            for t=1:T
-			             low = max((t-T), -ξ)
-			             high = min(t-1, ξ)
-					           for s = low:high
-                    κ = 1.0-s/St
-                    @inbounds nG[t, m] += κ*G[t-s, m]
-                end
-            end
-        end
-        return(nG/(2*ξ+1))
-    end
-    BartlettKernel(ξ, (2.0*ξ+1.0)/2.0, SmoothingFunction, 1.0, 2.0/3.0)
-end 
-
-type MomentFunction
-  g_i::Function
-  Dg_n::Function    ## return k x m
-  Dg_j::Function    ## return n x k
-  H_n::Function     ## return kxk (hessian of lambda'\sum p_i g_i
-  ## Smothing
-  sf::SmoothingKernels
-end
 
 type MomentFunctionJacobian
   ∇::AbstractMatrix
 end
 
 
-type MinimumDivergenceProblem <: MDP
-  mf::MomentFunction
-  div::Divergence
-  status::Symbol
-  n::Int64
-  m::Int64
-  p::Int64
-  fprob::IpoptProblem
-  lambda::Array{Float64,1}
-  x_ul::Array{Float64,1}
-  x_lw::Array{Float64,1}
-  ## Precaching
-  ∇g_n::Union(Array{MomentFunctionJacobian, 1}, Nothing)
-  Σ::Union(Array{PDMat, 1}, Nothing)
-  Ω::Union(Array{PDMat, 1}, Nothing)
-  H::Union(PDMat, Nothing)
-end
+# type MinimumDivergenceProblem <: MDP
+#   mf::MomentFunction
+#   div::Divergence
+#   status::Symbol
+#   n::Int64
+#   m::Int64
+#   p::Int64
+#   fprob::IpoptProblem
+#   lambda::Array{Float64,1}
+#   x_ul::Array{Float64,1}
+#   x_lw::Array{Float64,1}
+#   ## Precaching
+#   ∇g_n::Union(Array{MomentFunctionJacobian, 1}, Nothing)
+#   Σ::Union(Array{PDMat, 1}, Nothing)
+#   Ω::Union(Array{PDMat, 1}, Nothing)
+#   H::Union(PDMat, Nothing)
+# end
 
-type MinimumDivergenceProblemPlain <: MDP
-  G::Array{Float64, 2}
-  div::Divergence
-  status::Symbol
-  n::Int64
-  m::Int64
-  fprob::IpoptProblem
-  lambda::Array{Float64,1}
-  x_ul::Array{Float64,1}
-  x_lw::Array{Float64,1}
-end
-
-
-function MomentFunction(g_i::Function)
-  g_n(theta::Vector, p::Vector) = g_i(theta)'*p
-  pgl_n(theta::Vector, p::Vector, λ::Vector) = (p'*g_i(theta)*λ)[1]
-  gl_i(theta::Vector, λ::Vector) = g_i(theta)*λ
-  wg_n(theta::Vector) = g_n(theta, __p)
-  wpgl_n(theta::Vector) = pgl_n(theta, __p, __lambda)
-  wgl_i(theta::Vector) = gl_i(theta, __lambda)
-  Dg_n(theta::Vector) = Calculus.jacobian(wg_n, theta, :central)
-  Dg_j(theta::Vector) = Calculus.jacobian(wgl_i, theta, :central)
-  H_n(theta::Vector)  = Calculus.hessian(wpgl_n, theta)
-  MomentFunction(g_i, Dg_n, Dg_j, H_n, WhiteKernel())
-end
-
-
-function MomentFunction(g_i::Function, sf::SmoothingKernels)
-    gᵢ(theta::Vector) = sf.SmoothingFunction(g_i(theta))    
-    g_n(theta::Vector, p::Vector) = gᵢ(theta)'*p
-    pgl_n(theta::Vector, p::Vector, λ::Vector) = (p'*gᵢ(theta)*λ)[1]
-    gl_i(theta::Vector, λ::Vector) = gᵢ(theta)*λ
-    wg_n(theta::Vector) = g_n(theta, __p)
-    wpgl_n(theta::Vector) = pgl_n(theta, __p, __lambda)
-    wgl_i(theta::Vector) = gl_i(theta, __lambda)
-    Dg_n(theta::Vector) = Calculus.jacobian(wg_n, theta, :central)
-    Dg_j(theta::Vector) = Calculus.jacobian(wgl_i, theta, :central)
-    H_n(theta::Vector)  = Calculus.hessian(wpgl_n, theta)
-    MomentFunction(gᵢ, Dg_n, Dg_j, H_n, sf)
-end
-
-function MomentFunction(g_i::Function, Dg_n::Function, Dg_j::Function)
-  g_n(theta::Vector, p::Vector) = g_i(theta)'*p
-  pgl_n(theta::Vector, p::Vector, λ::Vector) = p'*g_i(theta)*λ
-  wpgl_n(theta::Vector) = pgl_n(theta, __p, __lambda)
-  H_n(theta::Vector)  = Calculus.hessian(wpgl_n, theta)
-  MomentFunction(g_i, Dg_n, Dg_j, H_n, WhiteKernel())
-end
+# type MinimumDivergenceProblemPlain <: MDP
+#   G::Array{Float64, 2}
+#   div::Divergence
+#   status::Symbol
+#   n::Int64
+#   m::Int64
+#   fprob::IpoptProblem
+#   lambda::Array{Float64,1}
+#   x_ul::Array{Float64,1}
+#   x_lw::Array{Float64,1}
+# end
 
 
 
-## This allow things like this
-##
-## g(theta) = z.*(y-x*theta)
-##
-## \partial g_i(theta)'*p/ \partial \theta = \nabla \sum p_i \nabla g_i(\theta) = -(x.*p)'*z (k x m)
-## 
-##
-## 
 
-
-## function IVMomentFunction()
 
 function md(mf::MomentFunction,
             divergence::Divergence,

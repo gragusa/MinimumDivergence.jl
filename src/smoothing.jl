@@ -1,29 +1,25 @@
-immutable WhiteKernel <: SmoothingKernels
-    St::Real
-    κ₁::Real
-    κ₂::Real
+abstract SmoothingKernel
+immutable IdentityKernel <: SmoothingKernel
 end    
 
-WhiteKernel() = WhiteKernel(1.0, 1.0, 1.0)
-
-immutable TruncatedKernel <: SmoothingKernels
+immutable TruncatedKernel <: SmoothingKernel
     ξ::Real
     St::Real
-    SmoothingFunction::Function
+    smoother::Function
     κ₁::Real
     κ₂::Real
 end
 
-immutable BartlettKernel <: SmoothingKernels
+immutable BartlettKernel <: SmoothingKernel
     ξ::Real
     St::Real
-    SmoothingFunction::Function
+    smoother::Function
     κ₁::Real
     κ₂::Real
 end
 
 function TruncatedKernel(ξ::Real)
-    function SmoothingFunction(G::Array{Float64, 2})
+    function smoother(G::Array{Float64, 2})
         T, M = size(G)
         nG   = zeros(T, M)        
         for m=1:M
@@ -37,11 +33,11 @@ function TruncatedKernel(ξ::Real)
         end
         return(nG/(2.0*ξ+1.0))
     end
-    TruncatedKernel(ξ, (2.0*ξ+1.0)/2.0, SmoothingFunction, 1.0, 1.0)
+    TruncatedKernel(ξ, (2.0*ξ+1.0)/2.0, smoother, 1.0, 1.0)
 end 
 
 function BartlettKernel(ξ::Real)
-    function SmoothingFunction(G::Array{Float64, 2})
+    function smoother(G::Array{Float64, 2})
         T, M = size(G)
         nG   = zeros(T, M)
         St   = (2.0*ξ+1.0)/2.0
@@ -57,5 +53,5 @@ function BartlettKernel(ξ::Real)
         end
         return(nG/(2*ξ+1))
     end
-    BartlettKernel(ξ, (2.0*ξ+1.0)/2.0, SmoothingFunction, 1.0, 2.0/3.0)
+    BartlettKernel(ξ, (2.0*ξ+1.0)/2.0, smoother, 1.0, 2.0/3.0)
 end 
