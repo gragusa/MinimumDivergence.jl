@@ -47,17 +47,3 @@ function MomentFunction(g::Function, dtype::Symbol, k::SmoothingKernel;
   ## Default is no smoothing
   MomentFunction(get_mom_deriv(g, dtype, k, nobs, nmom, npar)..., k, nobs, nmom, npar)
 end
-
-
-
-
-function pgl(p, g, l) 
-	N, m = size(g)
-	a = 0.0
-	for j = 1:m
-		for i = 1:N
-			a += p[i]*g[i,j]*l[j]
-		end 
-	end 
-	return a
-end 
