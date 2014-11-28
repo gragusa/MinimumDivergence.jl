@@ -1,39 +1,3 @@
-# using Ipopt
-# using ModelsGenerators
-# using Divergences
-# using MinimumDivergence
-
-# srand(2)
-# @time y, x, z  = randiv(100, k = 2);
-
-# n, k = size(x);
-# n, m = size(z);
-
-# g_i(theta)  = z.*(y-x*theta)
-# mf = MomentFunction(g_i)
-# div = ReverseKullbackLeibler()
-
-# out=md(mf,
-#       div,
-#       zeros(k),
-#       -ones(k),
-#       ones(k),
-#       0,
-#       "mumps",
-#       "exact")
-
-# @time out=md(mf,
-#       div,
-#       zeros(k),
-#       -ones(k),
-#       ones(k),
-#       0,
-#       "mumps",
-#       "exact")
-
-
-
-
 using MinimumDivergence
 using Ipopt
 using KNITRO
@@ -57,7 +21,6 @@ import MathProgBase.MathProgSolverInterface
 MinimumDivergence.mdtest(mf, KullbackLeibler(), [.1,.1], [-2, -2.], [2.,2]; solver = IpoptSolver())
 
 out3 = MinimumDivergence.mdtest(mf, div, θ₀, lb, ub, solver=KnitroSolver(ms_enable=1))
-
 out4 = MinimumDivergence.mdtest(mf, div, θ₀, lb, ub, solver=KnitroSolver(KTR_PARAM_MULTISTART=1))
 
 
@@ -88,35 +51,7 @@ out4 = MinimumDivergence.mdtest(mf, div, θ₀, lb, ub, solver=KnitroSolver(KTR_
 #       "exact")
 #   Β[j, :] = coef(out)
 # end
-
-
-
-
 # @time vcov!(out)
 # @time MinimumDivergence.hessian!(out)
-
-
-
 # mf = MomentFunction(g_i, MinimumDivergence.TruncatedKernel(0.))
 
-# @time out=md(mf,
-#       div,
-#       zeros(k),
-#       -10*ones(k),
-#       10*ones(k),
-#       0,
-#       "ma27",
-#       "exact")
-
-# @time vcov!(out);
-
-# mf = MomentFunction(g_i, MinimumDivergence.BartlettKernel(0.))
-
-# @time out=md(mf,
-#       div,
-#       zeros(k),
-#       -10*ones(k),
-#       10*ones(k),
-#       0,
-#       "ma27",
-#       "exact")
