@@ -11,7 +11,8 @@ before_install:
   - sudo add-apt-repository ppa:staticfloat/${JULIAVERSION} -y
   - sudo apt-get update -qq -y
   - sudo apt-get install libpcre3-dev julia -y
-  - sudo apt-get install coinor-ipopt
+  - sudo apt-get install build-essential
+  - sudo apt-get install gfortran
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
 script:
   - julia -e 'Pkg.init(); Pkg.clone(pwd()); Pkg.clone("https://github.com/gragusa/Divergences.jl.git"); Pkg.clone("https://github.com/gragusa/ModelsGenerators.git"); Pkg.test("MinimumDivergence")'
