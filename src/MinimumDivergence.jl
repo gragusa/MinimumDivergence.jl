@@ -1,45 +1,74 @@
 module MinimumDivergence
 
+##############################################################################
+##
+## Dependencies
+##
+##############################################################################
+
 
 using Calculus
 using Divergences
-
 using Ipopt
 using ArrayViews
 using PDMats
 using StatsBase
+using MathProgBase
+using ForwardDiff
 
 
+##############################################################################
+##
+## Extend methods 
+##
+##############################################################################
 
-import Calculus: gradient
-import Divergences: Divergence, hessian
 import Base.show
-import StatsBase: coef, coeftable, confint, deviance, loglikelihood, nobs, stderr, vcov
+import Calculus: gradient, hessian
+import Divergences: Divergence
+import StatsBase: coef, coeftable, confint, loglikelihood, nobs, stderr, vcov
+import MathProgBase.MathProgSolverInterface
+
+##############################################################################
+##
+## Exported methods
+##
+##############################################################################
 
 
 
-include("md.jl")
+
+##############################################################################
+##
+## Load file
+##
+##############################################################################
+
+
+include("types.jl")
+include("smoothing.jl")
+include("momfun.jl")
+include("interface.jl")
+include("api.jl")
 include("methods.jl")
-
-export MomentFunction,
-       MinimumDivergenceProblem,
-       md,
-       ivmd,
-       nobs,
-       ncond,
-       lambda,
-       weights,
-       obj_val,
-       mfjacobian!,
-       meat!,
-       vcov!,
-       vcov,
-       coef,
-       jacobian,
-       hessian,
-       stderr,
-       show
+include("utils.jl")
 
 
+
+global __λ 
+global __p
+
+# include("MathProgBase.jl")
+# include("smoothing.jl")
+# include("momfun.jl")
+# include("md.jl")
+# include("methods.jl")
+# include("utils.jl")
+
+
+export MomentFunction, 
+       MinimumDivergenceProblem, 
+       nobs, nmom, npar
+       
 end # module
 
