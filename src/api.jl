@@ -2,48 +2,144 @@
 ## To be refined....
 ##
 ############################
-function mdtest(mf::MomentFunction,
-                div::Divergence, 
-                θ₀::Vector, 
-                lb::Vector, ub::Vector;
-                solver=IpoptSolver())
+abstract MinimumDivergenceProblems
 
-    model = MathProgSolverInterface.model(solver)
+typealias MDPS MinimumDivergenceProblems
 
+type MinDivProb <: MinimumDivergenceProblems
+    model::MathProgBase.AbstractMathProgModel
+    mdnlpe::MinDivNLPEvaluator
+    status::Array{Symbol, 1}
+    Vʷ::Union(Nothing, PDMat)
+    Vᴴ::Union(Nothing, PDMat)
+    H::Union(Nothing, PDMat)
+end
+
+immutable SMinDivProb <: MinimumDivergenceProblems
+    model::MathProgBase.AbstractMathProgModel
+    mdnlpe::SMinDivNLPEvaluator
+    status::Array{Symbol,1}
+end
+
+function MinDivProb(g_eq::AbstractMatrix, 
+    g_ineq::AbstractMatrix, 
+    div::Divergence, 
+    g_L_ineq::Vector, 
+    g_U_ineq::Vector; 
+    solver=IpoptSolver())
+
+    n_eq, m_eq  = size(g_eq)
+    n_ineq, m_ineq = size(g_ineq)
+
+    @assert n_eq==n_ineq
+    @assert length(g_L_ineq)==length(g_U_ineq)
+    @assert length(g_L_ineq)==m_ineq
+
+    model = MathProgBase.MathProgSolverInterface.model(solver)
+
+    m = m_eq+m_ineq
+    n = n_eq
+
+    gele = int(n*(m+1))
+    hele = int(n)
+
+    g_L = [zeros(m_eq), g_L_ineq, n];
+    g_U = [zeros(m_eq), g_U_ineq, n];
+
+    u_L = [zeros(n)];
+    u_U = [ones(n)*n];    
+
+
+    mdnlpe = SMDNLPE([g_eq g_ineq], div, n, m_eq, m_ineq, m, gele, hele) 
+
+    loadnonlinearproblem!(model, n, m+1, u_L, u_U, 
+                                                 g_L, g_U, :Min, mdnlpe)
+
+    setwarmstart!(model, ones(n))
+
+    SMinDivProb(model, mdnlpe, [:Unsolved])
+end 
+
+
+function MinDivProb(g::AbstractMatrix, div::Divergence; solver = IpoptSolver())
+    
+    model = MathProgBase.MathProgSolverInterface.model(solver)
+    n, m = size(g)
+
+    gele = int(n*(m+1))
+    hele = int(n)
+
+    g_L = [zeros(m), n];
+    g_U = [zeros(m), n];
+
+    u_L = [zeros(n)];
+    u_U = [ones(n)*n];    
+
+    mdnlpe = SMDNLPE(g, div, n, m, 0, m, gele, hele, solver) 
+
+    loadnonlinearproblem!(model, n, m+1, u_L, u_U, g_L, g_U, :Min, mdnlpe)
+    setwarmstart!(model, ones(n))
+    SMinDivProb(model, mdnlpe, [:Unsolved])
+end 
+
+
+function MinDivProb(mf::MomentFunction,
+                    div::Divergence, 
+                    θ₀::Vector, 
+                    lb::Vector, ub::Vector;
+                    solver=IpoptSolver())
+
+    model = MathProgBase.MathProgSolverInterface.model(solver)
     m = mf.nmom
     n = mf.nobs 
     k = mf.npar
-
     u₀ = [ones(n), θ₀]
-
     gele = int((n+k)*(m+1)-k)
     hele = int(n*k + n + (k+1)*k/2)
-
-    # lb = [-2., -2]
-    # ub = [2, 2.]
     g_L = [zeros(m), n];
     g_U = [zeros(m), n];
 
     u_L = [zeros(n),  lb];
-    u_U = [ones(n)*n, ub];
-    # l = [1,1,1,1]
-    # u = [5,5,5,5]
-    # lb = [25, 40]
-    # ub = [Inf, 40]
+    u_U = [ones(n)*n, ub];    
 
-    MdProb = MinimumDivergenceProblem(mf, div, n, m, k, gele, hele, Array(Float64, n), Array(Float64, m+1)) 
-    
+    mdnlpe = MDNLPE(mf, div, n, m, k, gele, hele, solver,
+                    Array(Float64, n), Array(Float64, m+1)) 
 
-    MathProgSolverInterface.loadnonlinearproblem!(model, n+k, m+1, u_L, u_U, g_L, g_U, :Min, MdProb)
-    
-    MathProgSolverInterface.setwarmstart!(model, u₀)
+    loadnonlinearproblem!(model, n+k, m+1, u_L, u_U, g_L, g_U, :Min, mdnlpe)    
+    setwarmstart!(model, u₀)
+    MinDivProb(model, mdnlpe, [:Unsolved], Nothing(), Nothing(), Nothing())              
+end 
 
-    MathProgSolverInterface.optimize!(model)
-    stat = MathProgSolverInterface.status(model)
-
-    # @test stat == :Optimal
-    uᵒ = MathProgSolverInterface.getsolution(model)
-    Qᵒ = MathProgSolverInterface.getobjval(model) 
-    (model, uᵒ, Qᵒ)
-
+function solve(mdp::MDPS)  
+    optimize!(mdp.model)
+    mdp.status[1] = status(mdp.model)
+    return mdp
 end
+
+status(mdp::MDPS)       = mdp.status[1]
+getobjval(mdp::MDPS)    = getobjval(mdp.model)
+
+nobs(mdp::MDPS)         = mdp.mdnlpe.nobs
+npar(mdp::MinDivProb)   = mdp.mdnlpe.npar
+nmom(mdp::MDPS)         = mdp.mdnlpe.nmom
+getlambda(mdp::MDPS)    = mdp.model.inner.mult_g[1:nmom(mdp)]
+geteta(mdp::MDPS)       = mdp.model.inner.mult_g[nmom(mdp)+1]
+coef(mdp::MinDivProb)   = mdp.model.inner.x[nobs(mdp)+1:nobs(mdp)+npar(mdp)]
+getmdweights(mdp::MDPS) = mdp.model.inner.x[1:nobs(mdp)]
+
+size(mdp::MinDivProb)    = (mdp.mdnlpe.nobs, mdp.mdnlpe.nmom, mdp.mdnlpe.npar)
+size(mdp::SMinDivProb)   = (mdp.mdnlpe.nobs, mdp.mdnlpe.nmom)
+divergence(mdp::MDPS)   = mdp.mdnlpe.div
+
+function show(io::IO, mdp::MinDivProb)
+    if !(status(mdp)==:Unsolved)
+        println("Minimum Divergence Estimation \n\nParameters estimate: $(coef(mdp))")
+    end         
+end
+
+
+
+# nmomeq(mdp::MinDivProb)   = mdp.meq
+# nmomineq(mdp::MinDivProb) = mdp.mineq
+
+

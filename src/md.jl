@@ -30,10 +30,6 @@
 # # ## H_n = function(theta::Vector, lambda::Vector, p::Vector) k x x
 
 
-
-
-
-
 # # type MomentFunctionJacobian
 # #   ∇::AbstractMatrix
 # # end
