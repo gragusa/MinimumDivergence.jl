@@ -35,7 +35,7 @@ import MathProgBase.MathProgSolverInterface: AbstractMathProgSolver,
 
 ##############################################################################
 ##
-## Extend methods 
+## Extend methods
 ##
 ##############################################################################
 
@@ -72,7 +72,7 @@ include("utils.jl")
 include("vcov.jl")
 
 
-global __λ 
+global __λ
 global __p
 
 # include("MathProgBase.jl")
@@ -82,26 +82,26 @@ global __p
 # include("methods.jl")
 # include("utils.jl")
 
-export MomentFunction, 
-       MinDivProb, 
+export MomentFunction,
+       MinDivProb,
        solve,
-       getobjval, 
+       getobjval,
        getlambda,
        geteta,
        getmdweights,
        status,
-       nobs, 
+       nobs,
        npar,
        nmom,
        coef,
        momf_jac,
-       momf_var, 
+       momf_var,
        vcov,
        vcov!,
-       size, 
+       size,
        divergence,
        getobjhess
-        
-       
+
+
 end # module
 

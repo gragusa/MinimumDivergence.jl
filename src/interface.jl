@@ -32,7 +32,7 @@ function eval_grad_f(d::MDNLPE, grad_f, u)
   end
 end
 
-function jac_structure(d::MDNLPE)   
+function jac_structure(d::MDNLPE)
   n = d.nobs
   k = d.npar
   m = d.nmom
@@ -48,7 +48,7 @@ function jac_structure(d::MDNLPE)
   rows, cols
 end
 
-function hesslag_structure(d::MDNLPE) 
+function hesslag_structure(d::MDNLPE)
   n = d.nobs
   k = d.npar
   m = d.nmom
@@ -77,9 +77,9 @@ function hesslag_structure(d::MDNLPE)
     end
   end
   rows, cols
-end 
+end
 
-function eval_jac_g(d::MDNLPE, J, u)  
+function eval_jac_g(d::MDNLPE, J, u)
  n = d.nobs
  k = d.npar
  m = d.nmom
@@ -107,7 +107,7 @@ function eval_hesslag(d::MDNLPE, H, u, σ, λ)
 
   global __p  = u[1:n]
   global __λ  = λ[1:m]
-  θ           = u[(n+1):(n+k)]      
+  θ           = u[(n+1):(n+k)]
 
   ∂sᵢλ = transpose(d.momf.∂sᵢλ(θ))
 
@@ -123,5 +123,3 @@ function eval_hesslag(d::MDNLPE, H, u, σ, λ)
   @inbounds H[n+1:n*k+n] = ∂sᵢλ[:]
   @inbounds H[n*k+n+1:d.hele] = gettril(d.momf.∂²sᵢλ(θ))
 end
-
-

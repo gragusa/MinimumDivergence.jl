@@ -21,11 +21,11 @@ immutable SMinDivProb <: MinimumDivergenceProblems
     status::Array{Symbol,1}
 end
 
-function MinDivProb(g_eq::AbstractMatrix, 
-    g_ineq::AbstractMatrix, 
-    div::Divergence, 
-    g_L_ineq::Vector, 
-    g_U_ineq::Vector; 
+function MinDivProb(g_eq::AbstractMatrix,
+    g_ineq::AbstractMatrix,
+    div::Divergence,
+    g_L_ineq::Vector,
+    g_U_ineq::Vector;
     solver=IpoptSolver())
 
     n_eq, m_eq  = size(g_eq)
@@ -47,22 +47,22 @@ function MinDivProb(g_eq::AbstractMatrix,
     g_U = [zeros(m_eq), g_U_ineq, n];
 
     u_L = [zeros(n)];
-    u_U = [ones(n)*n];    
+    u_U = [ones(n)*n];
 
 
-    mdnlpe = SMDNLPE([g_eq g_ineq], div, n, m_eq, m_ineq, m, gele, hele) 
+    mdnlpe = SMDNLPE([g_eq g_ineq], div, n, m_eq, m_ineq, m, gele, hele)
 
-    loadnonlinearproblem!(model, n, m+1, u_L, u_U, 
+    loadnonlinearproblem!(model, n, m+1, u_L, u_U,
                                                  g_L, g_U, :Min, mdnlpe)
 
     setwarmstart!(model, ones(n))
 
     SMinDivProb(model, mdnlpe, [:Unsolved])
-end 
+end
 
 
 function MinDivProb(g::AbstractMatrix, div::Divergence; solver = IpoptSolver())
-    
+
     model = MathProgBase.MathProgSolverInterface.model(solver)
     n, m = size(g)
 
@@ -73,25 +73,25 @@ function MinDivProb(g::AbstractMatrix, div::Divergence; solver = IpoptSolver())
     g_U = [zeros(m), n];
 
     u_L = [zeros(n)];
-    u_U = [ones(n)*n];    
+    u_U = [ones(n)*n];
 
-    mdnlpe = SMDNLPE(g, div, n, m, 0, m, gele, hele, solver) 
+    mdnlpe = SMDNLPE(g, div, n, m, 0, m, gele, hele, solver)
 
     loadnonlinearproblem!(model, n, m+1, u_L, u_U, g_L, g_U, :Min, mdnlpe)
     setwarmstart!(model, ones(n))
     SMinDivProb(model, mdnlpe, [:Unsolved])
-end 
+end
 
 
 function MinDivProb(mf::MomentFunction,
-                    div::Divergence, 
-                    θ₀::Vector, 
+                    div::Divergence,
+                    θ₀::Vector,
                     lb::Vector, ub::Vector;
                     solver=IpoptSolver())
 
     model = MathProgBase.MathProgSolverInterface.model(solver)
     m = mf.nmom
-    n = mf.nobs 
+    n = mf.nobs
     k = mf.npar
     u₀ = [ones(n), θ₀]
     gele = int((n+k)*(m+1)-k)
@@ -100,17 +100,17 @@ function MinDivProb(mf::MomentFunction,
     g_U = [zeros(m), n];
 
     u_L = [zeros(n),  lb];
-    u_U = [ones(n)*n, ub];    
+    u_U = [ones(n)*n, ub];
 
     mdnlpe = MDNLPE(mf, div, n, m, k, gele, hele, solver,
-                    Array(Float64, n), Array(Float64, m+1)) 
+                    Array(Float64, n), Array(Float64, m+1))
 
-    loadnonlinearproblem!(model, n+k, m+1, u_L, u_U, g_L, g_U, :Min, mdnlpe)    
+    loadnonlinearproblem!(model, n+k, m+1, u_L, u_U, g_L, g_U, :Min, mdnlpe)
     setwarmstart!(model, u₀)
-    MinDivProb(model, mdnlpe, [:Unsolved], Nothing(), Nothing(), Nothing())              
-end 
+    MinDivProb(model, mdnlpe, [:Unsolved], Nothing(), Nothing(), Nothing())
+end
 
-function solve(mdp::MDPS)  
+function solve(mdp::MDPS)
     optimize!(mdp.model)
     mdp.status[1] = status(mdp.model)
     return mdp
@@ -134,12 +134,5 @@ divergence(mdp::MDPS)   = mdp.mdnlpe.div
 function show(io::IO, mdp::MinDivProb)
     if !(status(mdp)==:Unsolved)
         println("Minimum Divergence Estimation \n\nParameters estimate: $(coef(mdp))")
-    end         
+    end
 end
-
-
-
-# nmomeq(mdp::MinDivProb)   = mdp.meq
-# nmomineq(mdp::MinDivProb) = mdp.mineq
-
-

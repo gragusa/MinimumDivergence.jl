@@ -16,14 +16,14 @@ type MomentFunction
   nobs::Int64
   nmom::Int64
   npar::Int64
-end  
+end
 
 type MinDivNLPEvaluator <: AbstractNLPEvaluator
   momf::MomentFunction
   div::Divergence
   nobs::Int64
   nmom::Int64
-  npar::Int64  
+  npar::Int64
   gele::Int64
   hele::Int64
   solver::AbstractMathProgSolver
@@ -46,4 +46,3 @@ end
 
 typealias MDNLPE MinDivNLPEvaluator
 typealias SMDNLPE SMinDivNLPEvaluator
-

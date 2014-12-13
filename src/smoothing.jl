@@ -1,6 +1,6 @@
 abstract SmoothingKernel
 immutable IdentityKernel <: SmoothingKernel
-end    
+end
 
 immutable TruncatedKernel <: SmoothingKernel
     ξ::Real
@@ -21,7 +21,7 @@ end
 function TruncatedKernel(ξ::Real)
     function smoother(G::Array{Float64, 2})
         T, M = size(G)
-        nG   = zeros(T, M)        
+        nG   = zeros(T, M)
         for m=1:M
             for t=1:T
 			             low = max((t-T), -ξ)
@@ -34,7 +34,7 @@ function TruncatedKernel(ξ::Real)
         return(nG/(2.0*ξ+1.0))
     end
     TruncatedKernel(ξ, (2.0*ξ+1.0)/2.0, smoother, 1.0, 1.0)
-end 
+end
 
 function BartlettKernel(ξ::Real)
     function smoother(G::Array{Float64, 2})
@@ -54,4 +54,4 @@ function BartlettKernel(ξ::Real)
         return(nG/(2*ξ+1))
     end
     BartlettKernel(ξ, (2.0*ξ+1.0)/2.0, smoother, 1.0, 2.0/3.0)
-end 
+end
