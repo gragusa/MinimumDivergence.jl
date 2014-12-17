@@ -1,7 +1,5 @@
 abstract SmoothingKernel
 
-## (g, s, gn, sn, ∂gn, ∂sn, ∂g1, ∂²g2)
-
 type MomentFunction
   gᵢ::Function        ## Moment Function
   sᵢ::Function        ## Smoothed moment function
@@ -18,6 +16,15 @@ type MomentFunction
   npar::Int64
 end
 
+type MomentMatrix
+  g::AbstractMatrix
+  g_L::Vector
+  g_U::Vector
+  kern::SmoothingKernel
+  m_eq::Int64
+  m_ineq::Int64
+end
+
 type MinDivNLPEvaluator <: AbstractNLPEvaluator
   momf::MomentFunction
   div::Divergence
@@ -32,7 +39,7 @@ type MinDivNLPEvaluator <: AbstractNLPEvaluator
 end
 
 type SMinDivNLPEvaluator <: AbstractNLPEvaluator
-  g::AbstractMatrix
+  mm::MomentMatrix
   div::Divergence
   nobs::Int64
   nmeq::Int64
@@ -42,7 +49,6 @@ type SMinDivNLPEvaluator <: AbstractNLPEvaluator
   hele::Int64
   solver::AbstractMathProgSolver
 end
-
 
 typealias MDNLPE MinDivNLPEvaluator
 typealias SMDNLPE SMinDivNLPEvaluator

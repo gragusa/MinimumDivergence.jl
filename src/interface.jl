@@ -23,7 +23,6 @@ function eval_grad_f(d::MDNLPE, grad_f, u)
   n = d.nobs
   k = d.npar
   m = d.nmom
-
   for j=1:n
     @inbounds grad_f[j] = Divergences.gradient(d.div, u[j])
   end
@@ -36,7 +35,6 @@ function jac_structure(d::MDNLPE)
   n = d.nobs
   k = d.npar
   m = d.nmom
-
   rows = Array(Int64, d.gele)
   cols = Array(Int64, d.gele)
   for j = 1:m+1, r = 1:n+k
@@ -84,10 +82,10 @@ function eval_jac_g(d::MDNLPE, J, u)
  k = d.npar
  m = d.nmom
 
- global __p    = u[1:n]
- θ      = u[(n+1):(n+k)]
- g      = d.momf.sᵢ(θ)
- ∂∑pᵢsᵢ = d.momf.∂∑pᵢsᵢ(θ)
+ global __p   = u[1:n]
+ θ            = u[(n+1):(n+k)]
+ g            = d.momf.sᵢ(θ)
+ ∂∑pᵢsᵢ       = d.momf.∂∑pᵢsᵢ(θ)
 
  for j=1:m+1, i=1:n+k
   if(j<=m && i<=n)
@@ -104,13 +102,10 @@ function eval_hesslag(d::MDNLPE, H, u, σ, λ)
   n = d.nobs
   k = d.npar
   m = d.nmom
-
   global __p  = u[1:n]
   global __λ  = λ[1:m]
   θ           = u[(n+1):(n+k)]
-
-  ∂sᵢλ = transpose(d.momf.∂sᵢλ(θ))
-
+  ∂sᵢλ        = transpose(d.momf.∂sᵢλ(θ))
   if σ==0
     for j=1:n
       @inbounds H[j] = 0.0

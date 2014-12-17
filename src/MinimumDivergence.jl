@@ -5,8 +5,6 @@ module MinimumDivergence
 ## Dependencies
 ##
 ##############################################################################
-
-
 using Calculus
 using Divergences
 using Ipopt
@@ -15,6 +13,7 @@ using PDMats
 using StatsBase
 using MathProgBase
 using ForwardDiff
+import MathProgBase: getobjval
 import MathProgBase.MathProgSolverInterface: AbstractMathProgSolver,
                                              AbstractNLPEvaluator,
                                              model,
@@ -31,36 +30,21 @@ import MathProgBase.MathProgSolverInterface: AbstractMathProgSolver,
                                              eval_hesslag,
                                              optimize!
 
-
-
 ##############################################################################
 ##
 ## Extend methods
 ##
 ##############################################################################
-
 import Base: show, size
 import Calculus: gradient, hessian
 import Divergences: Divergence
 import StatsBase: coef, coeftable, confint, loglikelihood, nobs, stderr, vcov
-
-
-##############################################################################
-##
-## Exported methods
-##
-##############################################################################
-
-
-
 
 ##############################################################################
 ##
 ## Load file
 ##
 ##############################################################################
-
-
 include("types.jl")
 include("smoothing.jl")
 include("momfun.jl")
@@ -71,18 +55,19 @@ include("methods.jl")
 include("utils.jl")
 include("vcov.jl")
 
-
 global __λ
 global __p
 
-# include("MathProgBase.jl")
-# include("smoothing.jl")
-# include("momfun.jl")
-# include("md.jl")
-# include("methods.jl")
-# include("utils.jl")
-
-export MomentFunction,
+##############################################################################
+##
+## Exported methods
+##
+##############################################################################
+export TruncatedKernel,
+       BartlettKernel,
+       IdentityKernel,
+       MomentFunction,
+       MomentMatrix,
        MinDivProb,
        solve,
        getobjval,
@@ -102,6 +87,4 @@ export MomentFunction,
        divergence,
        getobjhess
 
-
 end # module
-

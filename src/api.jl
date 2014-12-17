@@ -49,7 +49,6 @@ function MinDivProb(g_eq::AbstractMatrix,
     u_L = [zeros(n)];
     u_U = [ones(n)*n];
 
-
     mdnlpe = SMDNLPE([g_eq g_ineq], div, n, m_eq, m_ineq, m, gele, hele)
 
     loadnonlinearproblem!(model, n, m+1, u_L, u_U,
@@ -60,28 +59,21 @@ function MinDivProb(g_eq::AbstractMatrix,
     SMinDivProb(model, mdnlpe, [:Unsolved])
 end
 
-
-function MinDivProb(g::AbstractMatrix, div::Divergence; solver = IpoptSolver())
+function MinDivProb(mm::MomentMatrix, div::Divergence; solver = IpoptSolver())
 
     model = MathProgBase.MathProgSolverInterface.model(solver)
-    n, m = size(g)
-
+    n, m = size(mm)
     gele = int(n*(m+1))
     hele = int(n)
-
-    g_L = [zeros(m), n];
-    g_U = [zeros(m), n];
-
+    g_L = [mm.g_L, n]
+    g_U = [mm.g_U, n]
     u_L = [zeros(n)];
     u_U = [ones(n)*n];
-
-    mdnlpe = SMDNLPE(g, div, n, m, 0, m, gele, hele, solver)
-
+    mdnlpe = SMDNLPE(mm, div, n, mm.m_eq, mm.m_ineq, m, gele, hele, solver)
     loadnonlinearproblem!(model, n, m+1, u_L, u_U, g_L, g_U, :Min, mdnlpe)
     setwarmstart!(model, ones(n))
     SMinDivProb(model, mdnlpe, [:Unsolved])
 end
-
 
 function MinDivProb(mf::MomentFunction,
                     div::Divergence,
@@ -117,18 +109,21 @@ function solve(mdp::MDPS)
 end
 
 status(mdp::MDPS)       = mdp.status[1]
-getobjval(mdp::MDPS)    = getobjval(mdp.model)
+objscaling(mdp::MDPS)   = mdp.mdnlpe.momf.kern.scale
+multscaling(mdp::MDPS)  = mdp.mdnlpe.momf.kern.κ₁/mdp.mdnlpe.momf.kern.κ₂
+getobjval(mdp::MDPS)    = getobjval(mdp.model)*objscaling(mdp)
 
 nobs(mdp::MDPS)         = mdp.mdnlpe.nobs
 npar(mdp::MinDivProb)   = mdp.mdnlpe.npar
 nmom(mdp::MDPS)         = mdp.mdnlpe.nmom
-getlambda(mdp::MDPS)    = mdp.model.inner.mult_g[1:nmom(mdp)]
-geteta(mdp::MDPS)       = mdp.model.inner.mult_g[nmom(mdp)+1]
+getlambda(mdp::MDPS)    = multscaling(mdp).*mdp.model.inner.mult_g[1:nmom(mdp)]
+geteta(mdp::MDPS)       = multscaling(mdp).*mdp.model.inner.mult_g[nmom(mdp)+1]
 coef(mdp::MinDivProb)   = mdp.model.inner.x[nobs(mdp)+1:nobs(mdp)+npar(mdp)]
 getmdweights(mdp::MDPS) = mdp.model.inner.x[1:nobs(mdp)]
 
-size(mdp::MinDivProb)    = (mdp.mdnlpe.nobs, mdp.mdnlpe.nmom, mdp.mdnlpe.npar)
-size(mdp::SMinDivProb)   = (mdp.mdnlpe.nobs, mdp.mdnlpe.nmom)
+size(mdp::MinDivProb)   = (mdp.mdnlpe.nobs, mdp.mdnlpe.nmom, mdp.mdnlpe.npar)
+size(mdp::SMinDivProb)  = (mdp.mdnlpe.nobs, mdp.mdnlpe.nmom)
+size(mm::MomentMatrix)   = size(mm.g)
 divergence(mdp::MDPS)   = mdp.mdnlpe.div
 
 function show(io::IO, mdp::MinDivProb)
