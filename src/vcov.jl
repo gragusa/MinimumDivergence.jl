@@ -6,8 +6,6 @@ momf_jac(mdp::MinDivProb) = momf_jac(mdp::MinDivProb, :weighted)
 momf_var(mdp::MinDivProb) = momf_var(mdp::MinDivProb, :weighted)
 
 
-
-
 ## momf_grad -> G
 ## momf_var -> Ω
 
@@ -75,7 +73,7 @@ function mdobj_hessian(mdp::MinDivProb, θ::Vector)
 	λ = zeros(m)
 	p = ones(n)
 
-    g  = Array(Float64, n, m)
+    g  = MomentMatrix(Array(Float64, n, m))
 	smd = MinDivProb(g, divergence(mdp),
 					solver = IpoptSolver(print_level=0, linear_solver = "ma27"))
 
@@ -89,7 +87,7 @@ function mdobj_hessian(mdp::MinDivProb, θ::Vector)
       @forwardrule θ[i] epsilon
             oldx = θ[i]
             θ[i] = oldx + epsilon
-            @inbounds g[:]  = mdp.mdnlpe.momf.sᵢ(θ)
+            @inbounds g.g[:]  = mdp.mdnlpe.momf.sᵢ(θ)
 			solve(smd)
 			λ = getlambda(smd)
 			p = getmdweights(smd)
@@ -108,8 +106,7 @@ end
 getobjhess(mdp::MinDivProb)  = mdp.H
 
 stderr(mdp::MinDivProb) = sqrt(diag(mdp.Vʷ))
-
-
+stderr(mdp::MinDivProb, ver::Symbol) = ver==:hessian ? sqrt(diag(mdp.Vᴴ)) : sqrt(diag(mdp.Vᵂ))
 
 function vcov!(mdp::MinDivProb, ver::Symbol)
 	if ver==:weighted || (ver==:hessian && typeof(mdp.Vʷ) <: Nothing)

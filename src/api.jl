@@ -50,7 +50,6 @@ function MinDivProb(g_eq::AbstractMatrix, g_ineq::AbstractMatrix,
 end
 
 function MinDivProb(mm::MomentMatrix, div::Divergence; solver = IpoptSolver())
-
     model = MathProgBase.MathProgSolverInterface.model(solver)
     n, m = size(mm)
     gele = int(n*(m+1))
@@ -67,7 +66,6 @@ end
 
 function MinDivProb(mf::MomentFunction, div::Divergence, θ₀::Vector,
                     lb::Vector, ub::Vector; solver=IpoptSolver())
-
     model = MathProgBase.MathProgSolverInterface.model(solver)
     m = mf.nmom
     n = mf.nobs
@@ -77,28 +75,37 @@ function MinDivProb(mf::MomentFunction, div::Divergence, θ₀::Vector,
     hele = int(n*k + n + (k+1)*k/2)
     g_L = [zeros(m), n];
     g_U = [zeros(m), n];
-
     u_L = [zeros(n),  lb];
     u_U = [ones(n)*n, ub];
-
     mdnlpe = MDNLPE(mf, div, n, m, k, gele, hele, solver,
                     Array(Float64, n), Array(Float64, m+1))
-
     loadnonlinearproblem!(model, n+k, m+1, u_L, u_U, g_L, g_U, :Min, mdnlpe)
     setwarmstart!(model, u₀)
     MinDivProb(model, mdnlpe, [:Unsolved], Nothing(), Nothing(), Nothing())
 end
 
-function solve(mdp::MDPS)
+function solve(mdp::MinDivProb)
+    optimize!(mdp.model)
+    mdp.status[1] = status(mdp.model)
+    if status(mdp.model)==:Optimal
+        vcov!(mdp)
+    end
+    return mdp
+end
+
+function solve(mdp::SMinDivProb)
     optimize!(mdp.model)
     mdp.status[1] = status(mdp.model)
     return mdp
 end
 
 status(mdp::MDPS)       = mdp.status[1]
-objscaling(mdp::MDPS)   = mdp.mdnlpe.momf.kern.scale
-multscaling(mdp::MDPS)  = mdp.mdnlpe.momf.kern.κ₁/mdp.mdnlpe.momf.kern.κ₂
 getobjval(mdp::MDPS)    = getobjval(mdp.model)*objscaling(mdp)
+
+multscaling(mdp::MinDivProb)  = mdp.mdnlpe.momf.kern.κ₁/mdp.mdnlpe.momf.kern.κ₂
+multscaling(mdp::SMinDivProb) = mdp.mdnlpe.mm.kern.κ₁/mdp.mdnlpe.mm.kern.κ₂
+objscaling(mdp::MinDivProb)   = mdp.mdnlpe.momf.kern.scale
+objscaling(mdp::SMinDivProb)  = mdp.mdnlpe.momf.kern.scale
 
 nobs(mdp::MDPS)         = mdp.mdnlpe.nobs
 npar(mdp::MinDivProb)   = mdp.mdnlpe.npar
@@ -113,8 +120,43 @@ size(mdp::SMinDivProb)  = (mdp.mdnlpe.nobs, mdp.mdnlpe.nmom)
 size(mm::MomentMatrix)  = size(mm.g)
 divergence(mdp::MDPS)   = mdp.mdnlpe.div
 
-function show(io::IO, mdp::MinDivProb)
-    if !(status(mdp)==:Unsolved)
-        println("Minimum Divergence Estimation \n\nParameters estimate: $(coef(mdp))")
+function coeftable(mm::MinDivProb)
+    cc = coef(mm)
+    se = stderr(mm)
+    zz = cc ./ se
+    CoefTable(hcat(cc,se,zz,2.0 * ccdf(Normal(), abs(zz))),
+              ["Estimate","Std.Error","z value", "Pr(>|z|)"],
+              ["θ\_$i" for i = 1:length(cc)], 4)
+end
+
+
+function coeftable(mm::MinDivProb, se::Vector)
+    cc = coef(mm)
+    @assert length(se)==length(cc)
+    zz = cc ./ se
+    CoefTable(hcat(cc,se,zz,2.0 * ccdf(Normal(), abs(zz))),
+              ["Estimate","Std.Error","z value", "Pr(>|z|)"],
+              ["θ$i" for i = 1:length(cc)], 4)
+end
+
+function coeftable(mm::MinDivProb, ver::Symbol)
+    cc = coef(mm)
+    se = stderr(mm, ver)
+    zz = cc ./ se
+    CoefTable(hcat(cc,se,zz,2.0 * ccdf(Normal(), abs(zz))),
+              ["Estimate","Std.Error","z value", "Pr(>|z|)"],
+              ["θ$i" for i = 1:length(cc)], 4)
+end
+
+
+function show(io::IO, obj::MinDivProb)
+    if status(obj)==:Optimal
+        if typeof(obj.Vᴴ) <: Nothing
+            println(io, "$(typeof(obj)):\n\nCoefficients:\n", coeftable(obj))
+        else
+            println(io, "$(typeof(obj)):\n\nCoefficients:\n",
+                coeftable(obj, stderr(obj, :hessian)))
+        end
     end
 end
+

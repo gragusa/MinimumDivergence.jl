@@ -13,6 +13,8 @@ using PDMats
 using StatsBase
 using MathProgBase
 using ForwardDiff
+using Distributions
+
 import MathProgBase: getobjval
 import MathProgBase.MathProgSolverInterface: AbstractMathProgSolver,
                                              AbstractNLPEvaluator,

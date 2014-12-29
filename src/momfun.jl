@@ -87,6 +87,15 @@ function MomentMatrix(g_eq::AbstractMatrix,
     MomentMatrix(g_eq, g_L, g_U, ker, m_eq, m_ineq)
 end
 
+function MomentMatrix(g_eq::AbstractMatrix)
+    n_eq, m_eq  = size(g_eq)
+    n_ineq, m_ineq = (n_eq, 0)
+    g_L = [zeros(m_eq)];
+    g_U = [zeros(m_eq)];
+    MomentMatrix(g_eq, g_L, g_U, IdentityKernel(), m_eq, m_ineq)
+end
+
+
 function MomentMatrix(g_ineq::AbstractMatrix,
                          g_L_ineq::Vector,
                          g_U_ineq::Vector,
