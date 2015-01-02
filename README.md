@@ -1,7 +1,8 @@
 # MinimumDivergence.jl
 
-[![Build Status](https://travis-ci.org/gragusa/MinimumDivergence.jl.svg?branch=master)](https://travis-ci.org/gragusa/MinimumDivergence.jl)
+[![Build Status](https://travis-ci.org/gragusa/MinimumDivergence.jl.svg?branch=devel)](https://travis-ci.org/gragusa/MinimumDivergence.jl)
 
+[![Coverage Status](https://coveralls.io/repos/gragusa/MinimumDivergence.jl/badge.png)](https://coveralls.io/r/gragusa/MinimumDivergence.jl)
 
 ## Examples
 
