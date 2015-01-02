@@ -19,6 +19,7 @@ script:
     - julia -e 'Pkg.clone("https://github.com/gragusa/Divergences.jl.git")'
     - julia -e 'Pkg.clone("https://github.com/gragusa/ModelsGenerators.git")'
     - julia -e 'Pkg.clone(pwd())'
+    - julia -e 'Pkg.add("Distributions")
     - julia -e 'Pkg.test("MinimumDivergence", coverage=true)'
 after_success:
     - julia -e 'cd(Pkg.dir("MinimumDivergence")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
