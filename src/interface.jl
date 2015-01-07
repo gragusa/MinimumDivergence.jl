@@ -8,7 +8,7 @@ end
 
 MathProgBase.isobjlinear(d::MDNLPE) = false
 MathProgBase.isobjquadratic(d::MDNLPE) = false
-MathProgBase.isconstrlinear(d::MDNLPE, i::Int64)
+MathProgBase.isconstrlinear(d::MDNLPE, i::Int64) = false
 
 features_available(d::MDNLPE) = [:Grad, :Jac, :Hess]
 eval_f(d::MDNLPE, u) = Divergences.evaluate(d.div, u[1:d.nobs])
