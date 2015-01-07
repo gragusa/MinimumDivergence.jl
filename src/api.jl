@@ -177,6 +177,7 @@ function coeftable(mm::MinDivProb, ver::Symbol)
 end
 
 
+<<<<<<< HEAD
 # function show(io::IO, obj::MinDivProb)
 #     if status(obj)==:Optimal
 #         if typeof(obj.Vᴴ) <: Nothing
@@ -187,4 +188,16 @@ end
 #         end
 #     end
 # end
+=======
+## function show(io::IO, obj::MinDivProb)
+##     if status(obj)==:Optimal
+##         if typeof(obj.Vᴴ) <: Nothing
+##             println(io, "$(typeof(obj)):\n\nCoefficients:\n", coeftable(obj))
+##         else
+##             println(io, "$(typeof(obj)):\n\nCoefficients:\n",
+##                 coeftable(obj, stderr(obj, :hessian)))
+##         end
+##     end
+## end
+>>>>>>> FETCH_HEAD
 

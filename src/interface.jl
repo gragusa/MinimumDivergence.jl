@@ -6,6 +6,10 @@ function initialize(d::MDNLPE, rf::Vector{Symbol})
     end
 end
 
+MathProgBase.isobjlinear(d::MDNLPE) = false
+MathProgBase.isobjquadratic(d::MDNLPE) = false
+MathProgBase.isconstrlinear(d::MDNLPE, i::Int64) = false
+
 features_available(d::MDNLPE) = [:Grad, :Jac, :Hess]
 eval_f(d::MDNLPE, u) = Divergences.evaluate(d.div, u[1:d.nobs])
 
@@ -13,8 +17,8 @@ function eval_g(d::MDNLPE, g, u)
   n = d.nobs
   k = d.npar
   m = d.nmom
-  θ   = u[(n+1):(n+k)]
-  p   = u[1:n]
+  @inbounds θ   = u[(n+1):(n+k)]
+  @inbounds p   = u[1:n]
   @inbounds g[1:m]  = d.momf.wsn(θ, p)
   @inbounds g[m+1]  = sum(p)
 end
@@ -118,3 +122,5 @@ function eval_hesslag(d::MDNLPE, H, u, σ, λ)
   @inbounds H[n+1:n*k+n] = ∂sᵢλ[:]
   @inbounds H[n*k+n+1:d.hele] = gettril(d.momf.∂²sᵢλ(θ))
 end
+
+eval_hesslag_prod(d::MDNLPE, hv, x, sigma, lambda) = true
