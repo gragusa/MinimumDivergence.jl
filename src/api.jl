@@ -99,8 +99,8 @@ end
 ##     else
 ##         thetas = [[rand(Uniform(-1,1)), rand(Uniform(-1,1))] for i=1:ms_maxsolves]
 ##         multistart(mdp, thetas)
-##     end 
-## end     
+##     end
+## end
 
 function multistart(mdp::MinDivProb, ms_thetas::Array{Array{Float64, 1}, 1})
     obj = fill!(Array(Float64, length(ms_thetas)), inf(1.0))
@@ -110,16 +110,16 @@ function multistart(mdp::MinDivProb, ms_thetas::Array{Array{Float64, 1}, 1})
         MathProgBase.optimize!(mdp.model)
         if MathProgBase.status(mdp)==:Optimal
             obj[i] = getobjval(mdp)
-        end 
-    end 
-          
-    if length(obj) > 0 
+        end
+    end
+
+    if length(obj) > 0
         opt = indmax(obj)
         MathProgBase.setwarmstart!(mdp.model, [ms_thetas[opt], w])
         solve(mdp)
-    end 
+    end
     return(mdp)
-end 
+end
 
 function solve(mdp::SMinDivProb)
     optimize!(mdp.model)
@@ -175,29 +175,3 @@ function coeftable(mm::MinDivProb, ver::Symbol)
               ["Estimate","Std.Error","z value", "Pr(>|z|)"],
               ["θ$i" for i = 1:length(cc)], 4)
 end
-
-
-<<<<<<< HEAD
-# function show(io::IO, obj::MinDivProb)
-#     if status(obj)==:Optimal
-#         if typeof(obj.Vᴴ) <: Nothing
-#             println(io, "$(typeof(obj)):\n\nCoefficients:\n", coeftable(obj))
-#         else
-#             println(io, "$(typeof(obj)):\n\nCoefficients:\n",
-#                 coeftable(obj, stderr(obj, :hessian)))
-#         end
-#     end
-# end
-=======
-## function show(io::IO, obj::MinDivProb)
-##     if status(obj)==:Optimal
-##         if typeof(obj.Vᴴ) <: Nothing
-##             println(io, "$(typeof(obj)):\n\nCoefficients:\n", coeftable(obj))
-##         else
-##             println(io, "$(typeof(obj)):\n\nCoefficients:\n",
-##                 coeftable(obj, stderr(obj, :hessian)))
-##         end
-##     end
-## end
->>>>>>> FETCH_HEAD
-
