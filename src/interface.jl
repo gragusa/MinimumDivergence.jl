@@ -6,8 +6,8 @@ function initialize(d::MDNLPE, rf::Vector{Symbol})
     end
 end
 
-isobjlinear(d::MDNLPE) = false
-isobjquadratic(d::MDNLPE) = false
+MathProgBase.isobjlinear(d::MDNLPE) = false
+MathProgBase.isobjquadratic(d::MDNLPE) = false
 
 features_available(d::MDNLPE) = [:Grad, :Jac, :Hess]
 eval_f(d::MDNLPE, u) = Divergences.evaluate(d.div, u[1:d.nobs])
