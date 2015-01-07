@@ -30,6 +30,7 @@ import MathProgBase.MathProgSolverInterface: AbstractMathProgSolver,
                                              eval_grad_f,
                                              eval_jac_g,
                                              eval_hesslag,
+                                             eval_hesslag_prod,
                                              optimize!
 
 ##############################################################################
