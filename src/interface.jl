@@ -17,8 +17,8 @@ function eval_g(d::MDNLPE, g, u)
   n = d.nobs
   k = d.npar
   m = d.nmom
-  θ   = u[(n+1):(n+k)]
-  p   = u[1:n]
+  @inbounds θ   = u[(n+1):(n+k)]
+  @inbounds p   = u[1:n]
   @inbounds g[1:m]  = d.momf.wsn(θ, p)
   @inbounds g[m+1]  = sum(p)
 end
