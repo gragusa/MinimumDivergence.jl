@@ -17,8 +17,8 @@ function eval_g(d::MDNLPE, g, u)
   n = d.nobs
   k = d.npar
   m = d.nmom
-  @inbounds θ   = sub(u, (n+1):(n+k))
-  @inbounds p   = sub(u, 1:n)
+  @inbounds θ   = u[(n+1):(n+k)]
+  @inbounds p   = u[1:n]
   @inbounds g[1:m]  = d.momf.wsn(θ, p)
   @inbounds g[m+1]  = sum(p)
 end
@@ -86,8 +86,8 @@ function eval_jac_g(d::MDNLPE, J, u)
  k = d.npar
  m = d.nmom
 
- @inbounds global __p   = sub(u, 1:n)
- @inbounds θ            = sub(u, (n+1):(n+k))
+ @inbounds global __p   = u[1:n]
+ @inbounds θ            = u[(n+1):(n+k)]
  g            = d.momf.sᵢ(θ)
  ∂∑pᵢsᵢ       = d.momf.∂∑pᵢsᵢ(θ)
 
@@ -106,9 +106,9 @@ function eval_hesslag(d::MDNLPE, H, u, σ, λ)
   n = d.nobs
   k = d.npar
   m = d.nmom
-  @inbounds global __p  = sub(u, 1:n)
-  @inbounds global __λ  = sub(λ, 1:m)
-  @inbounds θ           = sub(u, (n+1):(n+k))
+  @inbounds global __p  = u[1:n]
+  @inbounds global __λ  = λ[1:m]
+  @inbounds θ           = u[(n+1):(n+k)]
   ∂sᵢλ        = transpose(d.momf.∂sᵢλ(θ))
   if σ==0
     for j=1:n
