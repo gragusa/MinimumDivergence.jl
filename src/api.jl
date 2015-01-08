@@ -93,15 +93,6 @@ function solve(mdp::MinDivProb)
     return mdp
 end
 
-## function multistart(mdp::MinDivProb, ms_maxsolves::Int64)
-##     if ms_maxsolves <= 0
-##         solve(mdp)
-##     else
-##         thetas = [[rand(Uniform(-1,1)), rand(Uniform(-1,1))] for i=1:ms_maxsolves]
-##         multistart(mdp, thetas)
-##     end
-## end
-
 function multistart(mdp::MinDivProb, ms_thetas::Array{Array{Float64, 1}, 1})
     obj = fill!(Array(Float64, length(ms_thetas)), inf(1.0))
     w = ones(nobs(mdp))
