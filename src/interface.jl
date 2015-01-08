@@ -122,5 +122,3 @@ function eval_hesslag(d::MDNLPE, H, u, σ, λ)
   @inbounds H[n+1:n*k+n] = ∂sᵢλ[:]
   @inbounds H[n*k+n+1:d.hele] = gettril(d.momf.∂²sᵢλ(θ))
 end
-
-eval_hesslag_prod(d::MDNLPE, hv, x, sigma, lambda) = true
