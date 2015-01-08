@@ -44,7 +44,7 @@ function MinDivProb(g_eq::AbstractMatrix, g_ineq::AbstractMatrix,
     mdnlpe = SMDNLPE([g_eq g_ineq], div, n, m_eq, m_ineq, m, gele, hele)
     loadnonlinearproblem!(model, n, m + 1, u_L, u_U, g_L, g_U, :Min, mdnlpe)
     setwarmstart!(model, ones(n))
-    SMinDivProb(model, mdnlpe, [:Unsolved])
+    SMinDivProb(model, mdnlpe)
 end
 
 function MinDivProb(mm::MomentMatrix, div::Divergence; solver = IpoptSolver())
@@ -59,7 +59,7 @@ function MinDivProb(mm::MomentMatrix, div::Divergence; solver = IpoptSolver())
     mdnlpe = SMDNLPE(mm, div, n, mm.m_eq, mm.m_ineq, m, gele, hele, solver)
     loadnonlinearproblem!(model, n, m+1, u_L, u_U, g_L, g_U, :Min, mdnlpe)
     setwarmstart!(model, ones(n))
-    SMinDivProb(model, mdnlpe, [:Unsolved])
+    SMinDivProb(model, mdnlpe)
 end
 
 function MinDivProb(mf::MomentFunction, div::Divergence, θ₀::Vector,
@@ -79,7 +79,7 @@ function MinDivProb(mf::MomentFunction, div::Divergence, θ₀::Vector,
                     Array(Float64, n), Array(Float64, m+1))
     loadnonlinearproblem!(model, n+k, m+1, u_L, u_U, g_L, g_U, :Min, mdnlpe)
     setwarmstart!(model, u₀)
-    MinDivProb(model, mdnlpe, [:Unsolved], Nothing(), Nothing(), Nothing())
+    MinDivProb(model, mdnlpe, Nothing(), Nothing(), Nothing())
 end
 
 function solve(mdp::MinDivProb)
