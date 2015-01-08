@@ -83,7 +83,7 @@ function MinDivProb(mf::MomentFunction, div::Divergence, θ₀::Vector,
 end
 
 function solve(mdp::MinDivProb)
-    optimize!(mdp.model)    
+    optimize!(mdp.model)
     if status(mdp)==:Optimal
         vcov!(mdp)
     end
