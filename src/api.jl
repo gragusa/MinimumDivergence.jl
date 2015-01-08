@@ -9,7 +9,6 @@ typealias MDPS MinimumDivergenceProblems
 type MinDivProb <: MinimumDivergenceProblems
     model::MathProgBase.AbstractMathProgModel
     mdnlpe::MinDivNLPEvaluator
-    status::Array{Symbol, 1}
     Vʷ::Union(Nothing, PDMat)
     Vᴴ::Union(Nothing, PDMat)
     H::Union(Nothing, PDMat)
@@ -18,7 +17,6 @@ end
 immutable SMinDivProb <: MinimumDivergenceProblems
     model::MathProgBase.AbstractMathProgModel
     mdnlpe::SMinDivNLPEvaluator
-    status::Array{Symbol,1}
 end
 
 function MinDivProb(g_eq::AbstractMatrix, g_ineq::AbstractMatrix,
@@ -85,9 +83,8 @@ function MinDivProb(mf::MomentFunction, div::Divergence, θ₀::Vector,
 end
 
 function solve(mdp::MinDivProb)
-    optimize!(mdp.model)
-    mdp.status[1] = status(mdp.model)
-    if status(mdp.model)==:Optimal
+    optimize!(mdp.model)    
+    if status(mdp)==:Optimal
         vcov!(mdp)
     end
     return mdp
@@ -114,11 +111,12 @@ end
 
 function solve(mdp::SMinDivProb)
     optimize!(mdp.model)
-    mdp.status[1] = status(mdp.model)
     return mdp
 end
 
-status(mdp::MDPS)       = mdp.status[1]
+status(mdp::MDPS)       = status(mdp.model)
+status_plain(mdp::MDPS) = mdp.model.inner.status
+
 getobjval(mdp::MDPS)    = getobjval(mdp.model)*objscaling(mdp)
 
 multscaling(mdp::MinDivProb)  = mdp.mdnlpe.momf.kern.κ₁/mdp.mdnlpe.momf.kern.κ₂

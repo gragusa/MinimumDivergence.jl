@@ -67,40 +67,38 @@ end
 
 
 function mdobj_hessian(mdp::MinDivProb, θ::Vector)
-	# 1. Initialize SMinDivProb
-	n, m, k = size(mdp)
-
-	λ = zeros(m)
-	p = ones(n)
-
+    # 1. Initialize SMinDivProb
+    n, m, k = size(mdp)    
+    λ = zeros(m)
+    p = ones(n)    
     g  = MomentMatrix(Array(Float64, n, m))
-	smd = MinDivProb(g, divergence(mdp),
-					solver = IpoptSolver(print_level=0, linear_solver = "ma27"))
-
-	h(θ, λ, p) = (p'*mdp.mdnlpe.momf.sᵢ(θ)*λ)[1]
-	h_closure!(θ, gg) = gg[:] = h(θ, λ, p)
-	∂h = ForwardDiff.forwarddiff_jacobian(h_closure!, Float64, fadtype=:dual, n = k, m = 1)
-
-	H = zeros(k, k)
-
+    smd = MinDivProb(g, divergence(mdp),
+                     solver = IpoptSolver(print_level=0, linear_solver = "ma27"))
+    
+    h(θ, λ, p) = (p'*mdp.mdnlpe.momf.sᵢ(θ)*λ)[1]
+    h_closure!(θ, gg) = gg[:] = h(θ, λ, p)
+    ∂h = ForwardDiff.forwarddiff_jacobian(h_closure!, Float64, fadtype=:dual, n = k, m = 1)
+    
+    H = zeros(k, k)
+    
     for i = 1:k
-      @forwardrule θ[i] epsilon
-            oldx = θ[i]
-            θ[i] = oldx + epsilon
-            @inbounds g.g[:]  = mdp.mdnlpe.momf.sᵢ(θ)
-			solve(smd)
-			λ = getlambda(smd)
-			p = getmdweights(smd)
-            f_xplusdx = ∂h(θ)
-            θ[i] = oldx
-            @inbounds H[i, :] = f_xplusdx / epsilon
+        @forwardrule θ[i] epsilon
+        oldx = θ[i]
+        θ[i] = oldx + epsilon
+        @inbounds g.g[:]  = mdp.mdnlpe.momf.sᵢ(θ)
+        solve(smd)
+        λ = getlambda(smd)
+        p = getmdweights(smd)
+        f_xplusdx = ∂h(θ)
+        θ[i] = oldx
+        @inbounds H[i, :] = f_xplusdx / epsilon
     end
     return H
 end
 
 function getobjhess!(mdp::MinDivProb)
-	mdp.H = PDMat(mdobj_hessian(mdp, coef(mdp)))
-	return mdp.H
+    mdp.H = PDMat(mdobj_hessian(mdp, coef(mdp)))
+    return mdp.H
 end
 
 getobjhess(mdp::MinDivProb)  = mdp.H
@@ -109,34 +107,34 @@ stderr(mdp::MinDivProb) = sqrt(diag(mdp.Vʷ))
 stderr(mdp::MinDivProb, ver::Symbol) = ver==:hessian ? sqrt(diag(mdp.Vᴴ)) : sqrt(diag(mdp.Vᵂ))
 
 function vcov!(mdp::MinDivProb, ver::Symbol)
-	if ver==:weighted || (ver==:hessian && typeof(mdp.Vʷ) <: Nothing)
-		Ω = momf_var(mdp)
-		G = momf_jac(mdp)
-		mdp.Vʷ = inv(PDMat(Xt_invA_X(Ω, G)))
-	end
+    if ver==:weighted || (ver==:hessian && typeof(mdp.Vʷ) <: Nothing)
+        Ω = momf_var(mdp)
+        G = momf_jac(mdp)
+        mdp.Vʷ[:] = inv(PDMat(Xt_invA_X(Ω, G)))
+    end
 
-	if ver==:hessian
-		if typeof(mdp.H) <: Nothing
-			getobjhess!(mdp)
-		end
-		mdp.Vᴴ = PDMat(Xt_invA_X(mdp.Vʷ, full(inv(mdp.H))))
-		mdp.Vᴴ
-	end
+    if ver==:hessian
+        if typeof(mdp.H) <: Nothing
+            getobjhess!(mdp)
+        end
+        mdp.Vᴴ[:] = PDMat(Xt_invA_X(mdp.Vʷ, full(inv(mdp.H))))
+        mdp.Vᴴ[:]
+ end
 end
 
 function vcov(mdp::MinDivProb, ver::Symbol)
-	if typeof(mdp.Vʷ) <: Nothing
-		vcov!(mdp, :weighted)
-		mdp.Vʷ
-	else
+    if typeof(mdp.Vʷ) <: Nothing
+        vcov!(mdp, :weighted)
+        mdp.Vʷ
+    else
 		if ver==:weighted
-			return mdp.Vʷ
-		elseif ver==:hessian
-			if typeof(mdp.H) <: Nothing
-				getobjhess!(mdp)
-			end
+      return mdp.Vʷ
+  elseif ver==:hessian
+      if typeof(mdp.H) <: Nothing
+          getobjhess!(mdp)
+      end
 			PDMat(Xt_invA_X(mdp.Vʷ, full(inv(mdp.H))))
-		end
+  end
 	end
 end
 
