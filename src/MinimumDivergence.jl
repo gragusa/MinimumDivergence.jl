@@ -86,6 +86,7 @@ export TruncatedKernel,
        momf_var,
        vcov,
        vcov!,
+       stderr,
        size,
        divergence,
        getobjhess
