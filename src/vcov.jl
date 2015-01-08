@@ -72,25 +72,24 @@ function mdobj_hessian(mdp::MinDivProb, θ::Vector)
     λ = zeros(m)
     p = ones(n)    
     g  = MomentMatrix(Array(Float64, n, m))
-    smd = MinDivProb(g, divergence(mdp),
-                     solver = IpoptSolver(print_level=0, linear_solver = "ma27"))
+    smd = MinDivProb(g, divergence(mdp), solver = mdp.mdnlpe.solver)
     
     h(θ, λ, p) = (p'*mdp.mdnlpe.momf.sᵢ(θ)*λ)[1]
-    h_closure!(θ, gg) = gg[:] = h(θ, λ, p)
+    h_closure!(θ, gg) = @inbounds gg[:] = h(θ, λ, p)
     ∂h = ForwardDiff.forwarddiff_jacobian(h_closure!, Float64, fadtype=:dual, n = k, m = 1)
     
     H = zeros(k, k)
     
     for i = 1:k
         @forwardrule θ[i] epsilon
-        oldx = θ[i]
-        θ[i] = oldx + epsilon
+        @inbounds oldx = θ[i]
+        @inbounds θ[i] = oldx + epsilon
         @inbounds g.g[:]  = mdp.mdnlpe.momf.sᵢ(θ)
         solve(smd)
         λ = getlambda(smd)
         p = getmdweights(smd)
         f_xplusdx = ∂h(θ)
-        θ[i] = oldx
+        @inbounds θ[i] = oldx
         @inbounds H[i, :] = f_xplusdx / epsilon
     end
     return H
