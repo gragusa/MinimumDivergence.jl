@@ -109,15 +109,15 @@ function vcov!(mdp::MinDivProb, ver::Symbol)
     if ver==:weighted || (ver==:hessian && typeof(mdp.Vʷ) <: Nothing)
         Ω = momf_var(mdp)
         G = momf_jac(mdp)
-        mdp.Vʷ[:] = inv(PDMat(Xt_invA_X(Ω, G)))
+        mdp.Vʷ = inv(PDMat(Xt_invA_X(Ω, G)))
     end
 
     if ver==:hessian
         if typeof(mdp.H) <: Nothing
             getobjhess!(mdp)
         end
-        mdp.Vᴴ[:] = PDMat(Xt_invA_X(mdp.Vʷ, full(inv(mdp.H))))
-        mdp.Vᴴ[:]
+        mdp.Vᴴ = PDMat(Xt_invA_X(mdp.Vʷ, full(inv(mdp.H))))
+        mdp.Vᴴ
  end
 end
 
