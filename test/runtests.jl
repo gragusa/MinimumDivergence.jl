@@ -9,7 +9,9 @@ using FactCheck
 
 
 srand(1)
-y, x, z = randiv(100, k=2)
+y, x, z = randiv()
+x = [ones(100) x]
+z = [ones(100) z]
 
 g(θ) = z.*(y-x*θ)
 
