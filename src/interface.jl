@@ -86,7 +86,7 @@ function eval_jac_g(d::MDNLPE, J, u)
  k = d.npar
  m = d.nmom
 
- @inbounds global __p::Array{Float64,1}   = u[1:n]
+ @inbounds global __p   = u[1:n]
  @inbounds θ            = u[(n+1):(n+k)]
  g            = d.momf.sᵢ(θ)
  ∂∑pᵢsᵢ       = d.momf.∂∑pᵢsᵢ(θ)
