@@ -61,7 +61,7 @@ function eval_jac_g(d::SMDNLPE, J, u)
         if(j<=m)
             @inbounds J[i+(j-1)*n] = d.mm.g[i+(j-1)*n]
         else
-    @inbounds J[i+(j-1)*n] = 1.0
+            @inbounds J[i+(j-1)*n] = 1.0
         end
     end
 end
