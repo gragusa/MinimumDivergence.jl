@@ -9,6 +9,11 @@ end
 features_available(d::SMDNLPE) = [:Grad, :Jac, :Hess]
 eval_f(d::SMDNLPE, u) = Divergences.evaluate(d.div, u[1:d.nobs])
 
+MathProgBase.isobjlinear(d::SMDNLPE) = false
+MathProgBase.isobjquadratic(d::SMDNLPE) = false
+MathProgBase.isconstrlinear(d::SMDNLPE, i::Int64) = false
+
+
 function eval_g(d::SMDNLPE, g, u)
   n = d.nobs
   m = d.nmom
