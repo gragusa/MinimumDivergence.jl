@@ -15,6 +15,10 @@ using MathProgBase
 using ForwardDiff
 using Distributions
 
+isknitro = try
+    using KNITRO
+end
+
 import MathProgBase: getobjval
 import MathProgBase.MathProgSolverInterface: AbstractMathProgSolver,
                                              AbstractNLPEvaluator,
