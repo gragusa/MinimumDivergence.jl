@@ -127,6 +127,9 @@ objscaling(mdp::SMinDivProb)  = mdp.mdnlpe.momf.kern.scale
 nobs(mdp::MDPS)         = mdp.mdnlpe.nobs
 npar(mdp::MinDivProb)   = mdp.mdnlpe.npar
 nmom(mdp::MDPS)         = mdp.mdnlpe.nmom
+
+nmom(m::MathProgBase.MathProgSolverInterface.AbstractMathProgModel) = m.inner.m-1
+
 coef(mdp::MinDivProb)   = mdp.model.inner.x[nobs(mdp)+1:nobs(mdp)+npar(mdp)]
 getmdweights(mdp::MDPS) = mdp.model.inner.x[1:nobs(mdp)]
 
@@ -135,12 +138,13 @@ size(mdp::SMinDivProb)  = (mdp.mdnlpe.nobs, mdp.mdnlpe.nmom)
 size(mm::MomentMatrix)  = size(mm.g)
 divergence(mdp::MDPS)   = mdp.mdnlpe.div
 
+_getlambda(m::Ipopt.IpoptMathProgModel)  = m.inner.mult_g[1:nmom(m)]
+_geteta(m::Ipopt.IpoptMathProgModel)  = m.inner.mult_g[nmom(m)+1]
 
-_getlambda(obj::KnitroMathProgModel) = obj.model.inner.lambda[1:nmom(mdp)]
-_getlambda(obj::IpoptMathProgModel)  = obj.model.inner.mult_g[1:nmom(mdp)]
-
-_getets(obj::KnitroMathProgModel) = obj.model.inner.lambda[nmom(mdp)+1]
-_getets(obj::IpoptMathProgModel)  = obj.model.inner.mult_g[nmom(mdp)+1]
+if isknitro
+    _getlambda(m::KnitroMathProgModel) = m.inner.lambda[1:nmom(m)]
+    _geteta(m::KnitroMathProgModel)    = m.inner.lambda[nmom(m)+1]
+end 
 
 getlambda(mdp::MDPS) = multscaling(mdp).*_getlambda(mdp.model)
 geteta(mdp::MDPS)    = multscaling(mdp).*_geteta(mdp.model)
