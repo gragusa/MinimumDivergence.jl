@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/gragusa/MinimumDivergence.jl.svg?branch=devel)](https://travis-ci.org/gragusa/MinimumDivergence.jl)
 
-[![Coverage Status](https://coveralls.io/repos/gragusa/MinimumDivergence.jl/badge.png)](https://coveralls.io/r/gragusa/MinimumDivergence.jl)
+[![Coverage Status](https://coveralls.io/repos/gragusa/MinimumDivergence.jl/badge.png?branch=develop)](https://coveralls.io/r/gragusa/MinimumDivergence.jl?branch=develop)
 
 ## Examples
 
