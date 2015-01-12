@@ -7,9 +7,6 @@ using ForwardDiff
 using Divergences
 using FactCheck
 
-
-
-
 function dgp_iv(n::Int64        = 100,
                 m::Int64         = 5,
                 theta0::Float64  = 0.0,
@@ -29,23 +26,17 @@ end
 
 
 srand(1)
-y, x, z = dgp_iv()
+y, x, z = dgp_iv(100)
 g(θ) = z.*(y-x*θ)
 
 function G(θ)
-	n, k, m = (size(x)[1], size(x)[2], size(z)[2])
-	U = Array(Float64, n, k, m)
-	for j=1:m
-		U[:,:,j] = -z[:,j].*x
-	end
-	U
+    n, k, m = (size(x)[1], size(x)[2], size(z)[2])
+    U = Array(Float64, n, k, m)
+    for j=1:m
+        U[:,:,j] = -z[:,j].*x
+    end
+    U
 end
-
-
-
-
-
-
 
 solver = IpoptSolver()
 
@@ -60,7 +51,7 @@ ub = [ 20.00,  20.00]
 
 facts("Check basic interface for estimating θ") do
     context("i.i.d - MD with different divergences") do
-        mf = MomentFunction(g, :dual, nobs = 100, nmom = 6, npar = 2)
+        mf = MomentFunction(g, :dual, nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
         minkl = MinDivProb(mf, KL(), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
         solve(minkl)
         @fact status(minkl) => :Optimal
@@ -72,71 +63,71 @@ facts("Check basic interface for estimating θ") do
         @fact full(vcov!(minkl, :hessian)) => anything
         @fact stderr(minkl, :hessian) => roughly([0.14617025806549167,0.39814674316586757])
 
-        mf = MomentFunction(g, :dual, nobs = 100, nmom = 6, npar = 2)
+        mf = MomentFunction(g, :dual, nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
         minkl = MinDivProb(mf, RKL(), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
         solve(minkl)
         @fact status(minkl) => :Optimal
         
-        mf = MomentFunction(g, :dual, nobs = 100, nmom = 6, npar = 2)
+        mf = MomentFunction(g, :dual, nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
         minkl = MinDivProb(mf, CressieRead(.5), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
         solve(minkl)
         @fact status(minkl) => :Optimal        
         
-        mf = MomentFunction(g, :dual, nobs = 100, nmom = 6, npar = 2)
+        mf = MomentFunction(g, :dual, nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
         minkl = MinDivProb(mf, CressieRead(-.5), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
         solve(minkl)
         @fact status(minkl) => :Optimal
 
-        mf = MomentFunction(g, :dual, nobs = 100, nmom = 6, npar = 2)
+        mf = MomentFunction(g, :dual, nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
         minkl = MinDivProb(mf, MKL(.1), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
         solve(minkl)
         @fact status(minkl) => :Optimal
 
-        mf = MomentFunction(g, :dual, nobs = 100, nmom = 6, npar = 2)
+        mf = MomentFunction(g, :dual, nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
         minkl = MinDivProb(mf, MRKL(.1), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
         solve(minkl)
         @fact status(minkl) => :Optimal
 	end
 
     context("time series - MD with Truncated Kernel") do
-        mf = MomentFunction(g, :dual, TruncatedKernel(1), nobs = 100, nmom = 6, npar = 2)
+        mf = MomentFunction(g, :dual, TruncatedKernel(1), nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
         minkl = MinDivProb(mf, KL(), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
         solve(minkl)
         @fact status(minkl) => :Optimal
         
-        mf = MomentFunction(g, :dual, TruncatedKernel(1), nobs = 100, nmom = 6, npar = 2)
+        mf = MomentFunction(g, :dual, TruncatedKernel(1), nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
         minkl = MinDivProb(mf, RKL(), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
         solve(minkl)
         @fact status(minkl) => :Optimal
         
-        mf = MomentFunction(g, :dual, TruncatedKernel(1), nobs = 100, nmom = 6, npar = 2)
+        mf = MomentFunction(g, :dual, TruncatedKernel(1), nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
         minkl = MinDivProb(mf, MRKL(.1), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
         solve(minkl)
         @fact status(minkl) => :Optimal
         
-        mf = MomentFunction(g, :dual, TruncatedKernel(1), nobs = 100, nmom = 6, npar = 2)
+        mf = MomentFunction(g, :dual, TruncatedKernel(1), nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
         minkl = MinDivProb(mf, MKL(.1), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
         solve(minkl)
         @fact status(minkl) => :Optimal
  end
 
     context("time series - MD with Bartlett Kernel") do
-        mf = MomentFunction(g, :dual, BartlettKernel(1), nobs = 100, nmom = 6, npar = 2)
+        mf = MomentFunction(g, :dual, BartlettKernel(1), nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
         minkl = MinDivProb(mf, KL(), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
         solve(minkl)
         @fact status(minkl) => :Optimal
         
-        mf = MomentFunction(g, :dual, BartlettKernel(1), nobs = 100, nmom = 6, npar = 2)
+        mf = MomentFunction(g, :dual, BartlettKernel(1), nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
         minkl = MinDivProb(mf, RKL(), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
         solve(minkl)
         @fact status(minkl) => :Optimal
         
-        mf = MomentFunction(g, :dual, BartlettKernel(1), nobs = 100, nmom = 6, npar = 2)
+        mf = MomentFunction(g, :dual, BartlettKernel(1), nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
         minkl = MinDivProb(mf, MRKL(.1), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
         solve(minkl)
         @fact status(minkl) => :Optimal
         
-        mf = MomentFunction(g, :dual, BartlettKernel(1), nobs = 100, nmom = 6, npar = 2)
+        mf = MomentFunction(g, :dual, BartlettKernel(1), nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
         minkl = MinDivProb(mf, MKL(.1), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
         solve(minkl)
         @fact status(minkl) => :Optimal
