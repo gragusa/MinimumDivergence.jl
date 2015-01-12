@@ -15,14 +15,14 @@ function get_mom_deriv(g::Function, dtype::Symbol, k::SmoothingKernel,
     sl(θ::Vector, λ::Vector) = s(θ)*λ
     swl(θ::Vector, p::Vector, λ::Vector) = (p'*s(θ)*λ)[1]
     
-    sw_closure(θ::Vector) = sw(θ, __p)
-    sl_closure(θ::Vector) = sl(θ, __λ)
-    swl_closure(θ::Vector) = swl(θ, __p, __λ)
+    sw_closure(θ::Vector) = sw(θ, __p::Array{Float64, 1})
+    sl_closure(θ::Vector) = sl(θ, __λ::Array{Float64, 1})
+    swl_closure(θ::Vector) = swl(θ, __p::Array{Float64, 1}, __λ::Array{Float64, 1})
     
     sn!(θ::Vector, gg) = gg[:] = sn(θ)
-    sw_closure!(θ::Vector, gg) = gg[:] = sw(θ, __p)
-    sl_closure!(θ::Vector, gg) = gg[:] = sl(θ, __λ)
-    swl_closure!(θ::Vector, gg) = gg[:] = swl(θ, __p, __λ)
+    sw_closure!(θ::Vector, gg)  = gg[:] = sw(θ, __p::Array{Float64, 1})
+    sl_closure!(θ::Vector, gg)  = gg[:] = sl(θ, __λ::Array{Float64, 1})
+    swl_closure!(θ::Vector, gg) = gg[:] = swl(θ, __p::Array{Float64, 1}, __λ::Array{Float64, 1})
     
     if dtype==:typed
         ∂sw   = ForwardDiff.forwarddiff_jacobian(sw_closure,
