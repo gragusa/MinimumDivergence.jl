@@ -14,9 +14,17 @@ using StatsBase
 using MathProgBase
 using ForwardDiff
 using Distributions
-try
+_isknitro = try
     using KNITRO
+end
+
+if VERSION < v"0.4"
+    ## try catch return a false
+    const isknitro = _isknitro ? false : true     
+else 
+    const isknitro = _isknitro <: Nothing ? false : true
 end 
+    
 
 const isknitro = isdefined(:(MinimumDivergence.KNITRO))
 
