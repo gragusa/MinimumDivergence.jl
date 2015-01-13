@@ -117,7 +117,7 @@ function vcov!(mdp::MinDivProb, ver::Symbol)
         getobjhess!(mdp)
         Ω = momf_var(mdp)
         G = momf_jac(mdp)
-        V = full(PDMat(Xt_invA_X(Ω, G)))
+        V = PDMat(Xt_invA_X(Ω, G))
         mdp.Vᴴ = PDMat(Xt_A_X(V, full(inv(mdp.H))))
         return(mdp.Vᴴ)
     end
