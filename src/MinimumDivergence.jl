@@ -20,9 +20,9 @@ end
 
 if VERSION < v"0.4"
     ## try catch return a false
-    const isknitro = _isknitro ? false : true     
+    global const isknitro = _isknitro ? false : true     
 else 
-    const isknitro = _isknitro <: Nothing ? false : true
+    global const isknitro = _isknitro <: Nothing ? false : true
 end 
 
 import MathProgBase: getobjval
