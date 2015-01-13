@@ -18,7 +18,7 @@ try
     using KNITRO
 end 
 
-global const isknitro::Bool = isdefined(:KNITRO)
+global const isknitro = isdefined(:KNITRO)
 
 import MathProgBase: getobjval
 import MathProgBase.MathProgSolverInterface: AbstractMathProgSolver,
