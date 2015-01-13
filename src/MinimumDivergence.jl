@@ -18,7 +18,7 @@ try
     using KNITRO
 end 
 
-const isknitro = isdefined(:MinimumDivergence.KNITRO)
+const isknitro = isdefined(:(MinimumDivergence.KNITRO))
 
 import MathProgBase: getobjval
 import MathProgBase.MathProgSolverInterface: AbstractMathProgSolver,
