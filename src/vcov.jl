@@ -106,18 +106,19 @@ stderr(mdp::MinDivProb) = sqrt(diag(mdp.Vʷ))
 stderr(mdp::MinDivProb, ver::Symbol) = ver==:hessian ? sqrt(diag(mdp.Vᴴ)) : sqrt(diag(mdp.Vᵂ))
 
 function vcov!(mdp::MinDivProb, ver::Symbol)
-    if ver==:weighted || (ver==:hessian && typeof(mdp.Vʷ) <: Nothing)
+    if ver==:weighted 
         Ω = momf_var(mdp)
         G = momf_jac(mdp)
         mdp.Vʷ = inv(PDMat(Xt_invA_X(Ω, G)))
         return(mdp.Vʷ)
     end
 
-    if ver==:hessian
-        if typeof(mdp.H) <: Nothing
-            getobjhess!(mdp)
-        end
-        mdp.Vᴴ = PDMat(Xt_invA_X(mdp.Vʷ, full(inv(mdp.H))))
+    if ver==:hessian        
+        getobjhess!(mdp)
+        Ω = momf_var(mdp)
+        G = momf_jac(mdp)
+        V = full(PDMat(Xt_invA_X(Ω, G)))
+        mdp.Vᴴ = PDMat(Xt_A_X(V, full(inv(mdp.H))))
         return(mdp.Vᴴ)
     end
 end
