@@ -128,7 +128,10 @@ nobs(mdp::MDPS)         = mdp.mdnlpe.nobs
 npar(mdp::MinDivProb)   = mdp.mdnlpe.npar
 nmom(mdp::MDPS)         = mdp.mdnlpe.nmom
 
-nmom(m::MathProgBase.MathProgSolverInterface.AbstractMathProgModel) = m.inner.m-1
+nmom(m::KNITRO.KnitroMathProgModel) = m.numConstr-1
+nmom(m::Ipopt.IpoptMathProgModel) = m.inner.m-1
+
+
 
 coef(mdp::MinDivProb)   = mdp.model.inner.x[nobs(mdp)+1:nobs(mdp)+npar(mdp)]
 getmdweights(mdp::MDPS) = mdp.model.inner.x[1:nobs(mdp)]
