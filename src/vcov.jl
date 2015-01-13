@@ -110,6 +110,7 @@ function vcov!(mdp::MinDivProb, ver::Symbol)
         Ω = momf_var(mdp)
         G = momf_jac(mdp)
         mdp.Vʷ = inv(PDMat(Xt_invA_X(Ω, G)))
+        mdp.Vʷ
     end
 
     if ver==:hessian
@@ -118,7 +119,7 @@ function vcov!(mdp::MinDivProb, ver::Symbol)
         end
         mdp.Vᴴ = PDMat(Xt_invA_X(mdp.Vʷ, full(inv(mdp.H))))
         mdp.Vᴴ
- end
+    end
 end
 
 function vcov(mdp::MinDivProb, ver::Symbol)
