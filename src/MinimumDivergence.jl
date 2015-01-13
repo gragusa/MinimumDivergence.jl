@@ -18,7 +18,7 @@ try
     using KNITRO
 end 
 
-global const isknitro = isdefined(:KNITRO)
+const isknitro = current_module(:KNITRO)
 
 import MathProgBase: getobjval
 import MathProgBase.MathProgSolverInterface: AbstractMathProgSolver,
