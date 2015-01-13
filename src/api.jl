@@ -141,7 +141,7 @@ divergence(mdp::MDPS)   = mdp.mdnlpe.div
 _getlambda(m::Ipopt.IpoptMathProgModel)  = m.inner.mult_g[1:nmom(m)]
 _geteta(m::Ipopt.IpoptMathProgModel)  = m.inner.mult_g[nmom(m)+1]
 
-if isknitro
+try 
     _getlambda(m::KnitroMathProgModel) = m.inner.lambda[1:nmom(m)]
     _geteta(m::KnitroMathProgModel)    = m.inner.lambda[nmom(m)+1]
 end 

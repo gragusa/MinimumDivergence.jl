@@ -14,16 +14,14 @@ using StatsBase
 using MathProgBase
 using ForwardDiff
 using Distributions
-_isknitro = try
-    using KNITRO
-end
+using KNITRO
 
-if VERSION < v"0.4"
-    ## try catch return a false
-    global const isknitro = _isknitro ? false : true     
-else 
-    global const isknitro = _isknitro <: Nothing ? false : true
-end 
+## if VERSION < v"0.4"
+##     ## try catch return a false
+##     global isknitro = _isknitro ? false : true     
+## else 
+##     global isknitro = _isknitro <: Nothing ? false : true
+## end 
 
 import MathProgBase: getobjval
 import MathProgBase.MathProgSolverInterface: AbstractMathProgSolver,
