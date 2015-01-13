@@ -142,8 +142,8 @@ _getlambda(m::Ipopt.IpoptMathProgModel)  = m.inner.mult_g[1:nmom(m)]
 _geteta(m::Ipopt.IpoptMathProgModel)  = m.inner.mult_g[nmom(m)+1]
 
 try 
-    _getlambda(m::KnitroMathProgModel) = m.inner.lambda[1:nmom(m)]
-    _geteta(m::KnitroMathProgModel)    = m.inner.lambda[nmom(m)+1]
+    _getlambda(m::KNITRO.KnitroMathProgModel) = m.inner.lambda[1:nmom(m)]
+    _geteta(m::KNITRO.KnitroMathProgModel)    = m.inner.lambda[nmom(m)+1]
 end 
 
 getlambda(mdp::MDPS) = multscaling(mdp).*_getlambda(mdp.model)
