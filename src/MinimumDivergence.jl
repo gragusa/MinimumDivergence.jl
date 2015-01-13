@@ -14,10 +14,11 @@ using StatsBase
 using MathProgBase
 using ForwardDiff
 using Distributions
-
-isknitro = try
+try
     using KNITRO
-end
+end 
+
+global const isknitro::Bool = isdefined(:KNITRO)
 
 import MathProgBase: getobjval
 import MathProgBase.MathProgSolverInterface: AbstractMathProgSolver,
