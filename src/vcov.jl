@@ -58,42 +58,59 @@ function momf_var(mdp::MinDivProb, ver::Symbol)
 end
 
 
-macro forwardrule(x, e)
-    x, e = esc(x), esc(e)
-    quote
-        $e = sqrt(eps(eltype($x))) * max(one(eltype($x)), abs($x))
-    end
-end
+## macro forwardrule(x, e)
+##     x, e = esc(x), esc(e)
+##     quote
+##         $e = sqrt(eps(eltype($x))) * max(one(eltype($x)), abs($x))
+##     end
+## end
 
 
 function mdobj_hessian(mdp::MinDivProb, θ::Vector)
-    # 1. Initialize SMinDivProb
     n, m, k = size(mdp)    
     λ = zeros(m)
     p = ones(n)    
-    g  = MomentMatrix(Array(Float64, n, m))
-    smd = MinDivProb(g, divergence(mdp), solver = mdp.mdnlpe.solver)
+    g2  = MomentMatrix(Array(Float64, n, m))
+    smd = MinDivProb(g2, divergence(mdp), solver = mdp.mdnlpe.solver)
+
+    function f(theta)
+        @inbounds g2.g[:]  = mdp.mdnlpe.momf.sᵢ(theta)
+        solve(smd).model.inner.obj_val
+    end 
+
+    second_derivative(f, coef(mdb))
+
+end 
+
+
+## function mdobj_hessian(mdp::MinDivProb, θ::Vector)
+##     # 1. Initialize SMinDivProb
+##     n, m, k = size(mdp)    
+##     λ = zeros(m)
+##     p = ones(n)    
+##     g  = MomentMatrix(Array(Float64, n, m))
+##     smd = MinDivProb(g, divergence(mdp), solver = mdp.mdnlpe.solver)
     
-    h(θ, λ, p) = (p'*mdp.mdnlpe.momf.sᵢ(θ)*λ)[1]
-    h_closure!(θ, gg) = @inbounds gg[:] = h(θ, λ, p)
-    ∂h = ForwardDiff.forwarddiff_jacobian(h_closure!, Float64, fadtype=:dual, n = k, m = 1)
+##     h(θ, λ, p) = (p'*mdp.mdnlpe.momf.sᵢ(θ)*λ)[1]
+##     h_closure!(θ, gg) = @inbounds gg[:] = h(θ, λ, p)
+##     ∂h = ForwardDiff.forwarddiff_jacobian(h_closure!, Float64, fadtype=:dual, n = k, m = 1)
     
-    H = zeros(k, k)
+##     H = zeros(k, k)
     
-    for i = 1:k
-        @forwardrule θ[i] epsilon
-        @inbounds oldx = θ[i]
-        @inbounds θ[i] = oldx + epsilon
-        @inbounds g.g[:]  = mdp.mdnlpe.momf.sᵢ(θ)
-        solve(smd)
-        λ = getlambda(smd)
-        p = getmdweights(smd)
-        f_xplusdx = ∂h(θ)
-        @inbounds θ[i] = oldx
-        @inbounds H[i, :] = f_xplusdx / epsilon
-    end
-    return H
-end
+##     for i = 1:k
+##         @forwardrule θ[i] epsilon
+##         @inbounds oldx = θ[i]
+##         @inbounds θ[i] = oldx + epsilon
+##         @inbounds g.g[:]  = mdp.mdnlpe.momf.sᵢ(θ)
+##         solve(smd)
+##         λ = getlambda(smd)
+##         p = getmdweights(smd)
+##         f_xplusdx = ∂h(θ)
+##         @inbounds θ[i] = oldx
+##         @inbounds H[i, :] = f_xplusdx / epsilon
+##     end
+##     return H
+## end
 
 function getobjhess!(mdp::MinDivProb)
     mdp.H = PDMat(mdobj_hessian(mdp, coef(mdp)))
