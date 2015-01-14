@@ -78,7 +78,7 @@ function mdobj_hessian(mdp::MinDivProb, θ::Vector)
         solve(smd).model.inner.obj_val
     end 
 
-    second_derivative(f, coef(mdb))
+    Calculus.second_derivative(f, coef(mdp))
 
 end 
 
