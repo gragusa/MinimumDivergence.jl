@@ -71,7 +71,7 @@ function mdobj_hessian(mdp::MinDivProb, θ::Vector)
     λ = zeros(m)
     p = ones(n)    
     g2  = MomentMatrix(Array(Float64, n, m))
-    smd = MinDivProb(g2, divergence(mdp), solver = IpoptProblem(linear_solver = "ma27", print_level=0))
+    smd = MinDivProb(g2, divergence(mdp), solver = IpoptSolver(linear_solver = "ma27", print_level=0))
 
     function f(theta)
         @inbounds g2.g[:]  = mdp.mdnlpe.momf.sᵢ(theta)
