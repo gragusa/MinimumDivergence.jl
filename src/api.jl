@@ -121,7 +121,7 @@ end
 
 function _resolve(mmi::Ipopt.IpoptMathProgModel, x0::Array{Float64,1})
     setwarmstart!(mmi, x0)
-    solve(mmi)    
+    optimize!(mmi)    
 end 
 
 function _resolve(mmi::Ipopt.IpoptMathProgModel, x0::Array{Float64,1}, lambda0::Array{Float64,1})
@@ -272,10 +272,10 @@ end
 
 ## Dropin for IV only
 
-function InstrumentalVariableMomentFunction()
+function InstrumentalVariableMomentFunction(y,x,z)
     nobs, nmom = size(z)
     (_,npar) = size(x)
-    eval(quote _ivderiv = -z'*x; end)
+    _ivderiv = -z'*x
     g(θ) = z.*(y-x*θ)
     s(θ) = z.*(y-x*θ)
     sn(θ) = sum(g(θ), 1)
@@ -287,34 +287,35 @@ function InstrumentalVariableMomentFunction()
     
     ∂sn(θ) = _ivderiv
     
-    ∂sl(θ::Vector) = -(z*__λ)*x
+    ∂sl(θ::Vector) = -(z*__λ).*x
     ∂swl(θ::Vector) = -(z*__λ)'*(__p.*x)
     ∂²swl(θ::Vector) = zeros(npar, npar)
     
     MomentFunction( g, g, sw, sn, ∂sw, ∂sn, ∂sl, ∂swl, ∂²swl, IdentityKernel(), nobs, nmom, npar)
-end 
+end
 
 
-function MomentFunction(g::Function, Dg::Array{Float64, 3}, ::InstrumentalVariableMomentFunction )
 
-    nobs, nmom = size(z)
-    (_,npar) = size(x)
+## Simplified interface for IV
+
+type InstrumentalVaraibleModel
+    y::Array{T, 1}
+    x::Array{T, 2}
+    z::Array{T,2}
+    k::SmoothingKernel
+end
+
+InstrumentalVaraibleModel(y,x,z) = InstrumentalVaraibleModel(y, x, z, IdentityKernel())
+
+function MinDivProb(iv::InstrumentalVaraibleModel, div::Divergence,
+                    θ₀::Array{T,1}, lb::Array{T,1}, ub::Array{T,1})
+    MinDivProb(MomentFunction(iv.y, iv.x, iv.z), div, θ₀, lb, ub)
+end
     
-    sn(θ::Vector) = sum(g(θ), 1)  
-    sw(θ::Vector, p::Vector) = g(θ)'*p
 
-    function ∂sw(θ::Vector, p::Vector)
-        -(p.*z)'*x
-    end
 
-    ∂sn(θ::Vector) = -z'*x
-    ∂sl(θ::Vector) = -(z*__λ)*x
-    ∂swl(θ::Vector) = -(z*__λ)'*(p.*x)
-    ∂²swl(θ::Vector) = zeros(npar, npar)
-    
-    MomentFunction( g, g, sw, sn, ∂sw, ∂sn, ∂sl, ∂swl, ∂²swl, IdentityKernel(), nobs, nmom, npar)
-end 
-    
+
+
     
     
     
