@@ -83,36 +83,103 @@ function MinDivProb(mf::MomentFunction, div::Divergence, θ₀::Vector,
 end
 
 function solve(mdp::MinDivProb)
-    optimize!(mdp.model)
+    resolve(mdp, _initial_x(mdp.model))
     if status(mdp)==:Optimal
         vcov!(mdp)
     end
     return mdp
 end
 
-function multistart(mdp::MinDivProb, ms_thetas::Array{Array{Float64, 1}, 1})
-    obj = fill!(Array(Float64, length(ms_thetas)), inf(1.0))
-    w = ones(nobs(mdp))
-    for i = 1:length(obj)
-        setwarmstart!(mdp.model, [ms_thetas[i], w])
-        MathProgBase.optimize!(mdp.model)
-        if MathProgBase.status(mdp)==:Optimal
-            obj[i] = getobjval(mdp)
-        end
-    end
-
-    if length(obj) > 0
-        opt = indmax(obj)
-        MathProgBase.setwarmstart!(mdp.model, [ms_thetas[opt], w])
-        solve(mdp)
-    end
-    return(mdp)
-end
-
 function solve(mdp::SMinDivProb)
-    optimize!(mdp.model)
+    resolve(mdp, _initial_x(mdp.model))    
     return mdp
 end
+
+
+function resolve(mdp::MinimumDivergenceProblems, x0::Array{Float64,1})
+    lambda0 = Array(Float64, nobs(mdp) + nmom(mdp) + npar(mdp) + 1)
+    if length(x0) == nobs(mdp)+npar(mdp)
+        _resolve(mdp.model, x0, lambda0)
+    elseif length(x0) > 0 && length(x0) == npar(mdp)
+        _resolve(mdp.model, [ones(nobs(mdp)), x0], lambda0)
+    else
+        error("Cannot resolve the problem. Check dimension of 'x0'")
+    end 
+end
+
+function resolve(mdp::MinimumDivergenceProblems, x0::Array{Float64,1}, lambda0::Array{Float64,1})
+    @assert length(lambda0) == nobs(mdp) + nmom(mdp) + npar(mdp) + 1
+    if length(x0) == nobs(mdp)+npar(mdp)
+        _resolve(mdp.model, x0, lambda0)
+    elseif length(x0) > 0 && length(x0) == npar(mdp)
+        _resolve(mdp.model, [ones(nobs(mdp)) x0], lambda0)
+    else
+        error("Cannot resolve the problem. Check dimension of 'x0'")
+    end 
+end
+
+
+function _resolve(mmi::Ipopt.IpoptMathProgModel, x0::Array{Float64,1})
+    setwarmstart!(mmi, x0)
+    solve(mmi)    
+end 
+
+function _resolve(mmi::Ipopt.IpoptMathProgModel, x0::Array{Float64,1}, lambda0::Array{Float64,1})
+    setwarmstart!(mmi, x0)
+    optimize!(mmi)
+end 
+
+function _resolve(mm::KNITRO.KnitroMathProgModel, x0::Array{Float64,1})
+    if status(mm) == :Uninitialized
+        setwarmstart!(model, x)
+        optimize!(mm)
+    else
+        restartProblem(mm.inner, x0, mm.inner.numConstr)
+        solveProblem(mm.inner)
+    end
+end
+
+function _resolve(mm::KNITRO.KnitroMathProgModel, x0::Array{Float64,1}, lambda0::Array{Float64,1})
+    if status(mm) == :Uninitialized
+        setwarmstart!(model, x0)
+        optimize!(mm)
+    else
+        restartProblem(mm.inner, x0, lambda0)
+        solveProblem(mm.inner)
+    end
+end
+
+
+_initial_x(mm::KNITRO.KnitroMathProgModel) =  mm.initial_x
+_initial_x(mm::Ipopt.IpoptMathProgModel) =  mm.warmstart
+
+_initial_lambda(mm::KNITRO.KnitroMathProgModel) =  mm.inner.lambda
+_initial_lambda(mm::Ipopt.IpoptMathProgModel)   =  mm.warmstart
+
+
+## function multistart(mdp::MinDivProb, ms_thetas::Array{Array{Float64, 1}, 1})
+##     obj = fill!(Array(Float64, length(ms_thetas)), inf(1.0))
+##     w = ones(nobs(mdp))
+##     for i = 1:length(obj)
+##         setwarmstart!(mdp.model, [ms_thetas[i], w])
+##         MathProgBase.optimize!(mdp.model)
+##         if MathProgBase.status(mdp)==:Optimal
+##             obj[i] = getobjval(mdp)
+##         end
+##     end
+
+##     if length(obj) > 0
+##         opt = indmax(obj)
+##         MathProgBase.setwarmstart!(mdp.model, [ms_thetas[opt], w])
+##         solve(mdp)
+##     end
+##     return(mdp)
+## end
+
+
+
+
+
 
 status(mdp::MDPS)       = status(mdp.model)
 status_plain(mdp::MDPS) = mdp.model.inner.status
@@ -180,3 +247,77 @@ function coeftable(mm::MinDivProb, ver::Symbol)
               ["Estimate","Std.Error","z value", "Pr(>|z|)"],
               ["θ$i" for i = 1:length(cc)], 4)
 end
+
+
+
+## Simplified API
+
+## type MomentFunction
+##   gᵢ::Function        ## Moment Function
+##   sᵢ::Function        ## Smoothed moment function
+##   wsn::Function       ## (m×1) ∑pᵢ sᵢ
+##   sn::Function        ## ∑sᵢ(θ)
+##   ∂∑pᵢsᵢ::Function    ## (k×m)
+##   ∂∑sᵢ::Function      ## (k×m)
+##   ∂sᵢλ::Function      ## (n×k)
+##   ∑pᵢ∂sᵢλ::Function   ## (k×1)
+##   ∂²sᵢλ::Function     ## (kxk)
+##   kern::SmoothingKernel
+##   nobs::Int64
+##   nmom::Int64
+##   npar::Int64
+## end
+
+
+
+## Dropin for IV only
+
+function InstrumentalVariableMomentFunction()
+    nobs, nmom = size(z)
+    (_,npar) = size(x)
+    eval(quote _ivderiv = -z'*x; end)
+    g(θ) = z.*(y-x*θ)
+    s(θ) = z.*(y-x*θ)
+    sn(θ) = sum(g(θ), 1)
+    sw(θ, p) = g(θ)'*p
+    
+    function ∂sw(θ::Vector)
+        -(__p.*z)'*x
+    end
+    
+    ∂sn(θ) = _ivderiv
+    
+    ∂sl(θ::Vector) = -(z*__λ)*x
+    ∂swl(θ::Vector) = -(z*__λ)'*(__p.*x)
+    ∂²swl(θ::Vector) = zeros(npar, npar)
+    
+    MomentFunction( g, g, sw, sn, ∂sw, ∂sn, ∂sl, ∂swl, ∂²swl, IdentityKernel(), nobs, nmom, npar)
+end 
+
+
+function MomentFunction(g::Function, Dg::Array{Float64, 3}, ::InstrumentalVariableMomentFunction )
+
+    nobs, nmom = size(z)
+    (_,npar) = size(x)
+    
+    sn(θ::Vector) = sum(g(θ), 1)  
+    sw(θ::Vector, p::Vector) = g(θ)'*p
+
+    function ∂sw(θ::Vector, p::Vector)
+        -(p.*z)'*x
+    end
+
+    ∂sn(θ::Vector) = -z'*x
+    ∂sl(θ::Vector) = -(z*__λ)*x
+    ∂swl(θ::Vector) = -(z*__λ)'*(p.*x)
+    ∂²swl(θ::Vector) = zeros(npar, npar)
+    
+    MomentFunction( g, g, sw, sn, ∂sw, ∂sn, ∂sl, ∂swl, ∂²swl, IdentityKernel(), nobs, nmom, npar)
+end 
+    
+    
+    
+    
+    
+
+

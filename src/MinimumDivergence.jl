@@ -5,15 +5,17 @@ module MinimumDivergence
 ## Dependencies
 ##
 ##############################################################################
+using Reexport
 using Calculus
-using Divergences
-using Ipopt
+@reexport using Divergences
+@reexport using Ipopt
+using Distributions
 using ArrayViews
 using PDMats
 using StatsBase
 using MathProgBase
 using ForwardDiff
-using Distributions
+
 using KNITRO
 
 ## if VERSION < v"0.4"

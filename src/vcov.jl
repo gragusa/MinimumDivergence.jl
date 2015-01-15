@@ -65,6 +65,75 @@ end
 ##     end
 ## end
 
+macro centralrule(x, e)
+    x, e = esc(x), esc(e)
+    quote
+        $e = cbrt(eps(eltype($x))) * max(one(eltype($x)), abs($x))
+    end
+end
+
+macro hessianrule(x, e)
+    x, e = esc(x), esc(e)
+    quote
+        $e = eps(eltype($x))^(1/4) * max(one(eltype($x)), abs($x))
+    end
+end
+
+function md_finite_difference_hessian!{S <: Number,
+                                       T <: Number}(f::Function,
+                                                    f0::S,
+                                                    x::Vector{S},
+                                                    H::Array{T})
+    # What is the dimension of x?
+    n = length(x)
+
+    epsilon = NaN
+    # TODO: Remove all these copies
+    xpp, xpm, xmp, xmm = copy(x), copy(x), copy(x), copy(x)
+    for i = 1:n
+        xi = x[i]
+        @hessianrule x[i] epsilon
+        xpp[i], xmm[i] = xi + epsilon, xi - epsilon
+        H[i, i] = (f(xpp) - 2*f0 + f(xmm)) / epsilon^2
+        @centralrule x[i] epsiloni
+        xp = xi + epsiloni
+        xm = xi - epsiloni
+        xpp[i], xpm[i], xmp[i], xmm[i] = xp, xp, xm, xm
+        for j = i+1:n
+            xj = x[j]
+            @centralrule x[j] epsilonj
+            xp = xj + epsilonj
+            xm = xj - epsilonj
+            xpp[j], xpm[j], xmp[j], xmm[j] = xp, xm, xp, xm
+            H[i, j] = (f(xpp) - f(xpm) - f(xmp) + f(xmm))/(4*epsiloni*epsilonj)
+            xpp[j], xpm[j], xmp[j], xmm[j] = xj, xj, xj, xj
+        end
+        xpp[i], xpm[i], xmp[i], xmm[i] = xi, xi, xi, xi
+    end
+    Base.LinAlg.copytri!(H,'U')
+end
+
+function md_finite_difference_hessian{T <: Number}(f::Function,
+                                                   f0::T,
+                                                   x::Vector{T})
+    # What is the dimension of x?
+    n = length(x)
+
+    # Allocate an empty Hessian
+    H = Array(Float64, n, n)
+
+    # Mutate the allocated Hessian
+    md_finite_difference_hessian!(f, f0, x, H)
+
+    # Return the Hessian
+    return H
+end
+
+
+
+function mdobj_hessian(mdp::MinDivProb)
+    mdobj_hessian(mdp, coef(mdp))
+end
 
 function mdobj_hessian(mdp::MinDivProb, θ::Vector)
     n, m, k = size(mdp)    
@@ -72,14 +141,11 @@ function mdobj_hessian(mdp::MinDivProb, θ::Vector)
     p = ones(n)    
     g2  = MomentMatrix(Array(Float64, n, m))
     smd = MinDivProb(g2, divergence(mdp), solver = IpoptSolver(linear_solver = "ma27", print_level=0))
-
     function f(theta)
         @inbounds g2.g[:]  = mdp.mdnlpe.momf.sᵢ(theta)
         solve(smd).model.inner.obj_val
     end 
-
-    Calculus.second_derivative(f, coef(mdp))
-
+    md_finite_difference_hessian(f, getobjval(mdp), θ)
 end 
 
 
