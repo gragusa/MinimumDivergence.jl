@@ -140,7 +140,7 @@ end
 
 function _resolve(mm::KNITRO.KnitroMathProgModel, x0::Array{Float64,1}, lambda0::Array{Float64,1})
     if status(mm) == :Uninitialized
-        setwarmstart!(model, x0)
+        setwarmstart!(mm, x0)
         optimize!(mm)
     else
         restartProblem(mm.inner, x0, lambda0)
