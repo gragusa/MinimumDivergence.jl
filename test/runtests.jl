@@ -45,7 +45,7 @@ facts("Check basic interface for estimating θ") do
         @fact stderr(minkl) => roughly([0.1205430380097216,0.3269700255069213])        
         @fact getobjval(minkl)  => greater_than(0)
         @fact full(vcov!(minkl, :hessian)) => anything
-        @fact stderr(minkl, :hessian) => roughly([0.14617025806549167,0.39814674316586757])
+        @fact stderr(minkl, :hessian) => roughly([0.14617078918564064,0.39814620253734473])
 
         mf = MomentFunction(g, :dual, nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
         minkl = MinDivProb(mf, RKL(), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
@@ -143,14 +143,14 @@ facts("Check Simplified API - IV") do
     context("IdentityKernel") do
         md = MinDivProb(IV(y,x,z), KullbackLeibler())
         solve(md)
-        @fact status(mp) => :Optimal
+        @fact status(md) => :Optimal
         coef(md)
-        var(md)
+        vcov(md)
         resolve(md, θ₀)
-        @fact status(mp) => :Optimal
+        @fact status(md) => :Optimal
         coef(md)
-        var(md)
-        @fact status(mp) => :Optimal
+        vcov(md, :hessian)
+        @fact status(md) => :Optimal
     end
     context("Equality and inequality") do
         gg  = z.*(y-x*[.1,.1])
