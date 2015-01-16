@@ -1,10 +1,4 @@
 using MinimumDivergence
-using Ipopt
-#conditional using/testing a package?
-#using KNITRO
-using ModelsGenerators
-using ForwardDiff
-using Divergences
 using FactCheck
 
 function dgp_iv(n::Int64        = 100,
@@ -24,19 +18,9 @@ function dgp_iv(n::Int64        = 100,
     return y, [ones(n) x], [ones(n) z]
 end
 
-
 srand(1)
 y, x, z = dgp_iv(100)
 g(θ) = z.*(y-x*θ)
-
-function G(θ)
-    n, k, m = (size(x)[1], size(x)[2], size(z)[2])
-    U = Array(Float64, n, k, m)
-    for j=1:m
-        U[:,:,j] = -z[:,j].*x
-    end
-    U
-end
 
 solver = IpoptSolver()
 
@@ -152,6 +136,34 @@ facts("Check MomentMatrix interface") do
         @fact status(mp) => :Optimal
     end
 end
+
+
+
+facts("Check Simplified API - IV") do
+    context("IdentityKernel") do
+        md = MinDivProb(IV(y,x,z), KullbackLeibler())
+        solve(md)
+        @fact status(mp) => :Optimal
+        coef(md)
+        var(md)
+        resolve(md, θ₀)
+        @fact status(mp) => :Optimal
+        coef(md)
+        var(md)
+        @fact status(mp) => :Optimal
+    end
+    context("Equality and inequality") do
+        gg  = z.*(y-x*[.1,.1])
+        ggi = reshape(float(x[:,2].>1.96), length(y), 1)
+        mm = MomentMatrix(gg, ggi, [0.04].*100, [0.06].*100, IdentityKernel())
+        mp = MinDivProb(mm, KullbackLeibler())
+        solve(mp)
+        @fact status(mp) => :Optimal
+    end
+end
+
+
+
 
 FactCheck.exitstatus()
 
