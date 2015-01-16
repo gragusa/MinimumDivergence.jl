@@ -141,8 +141,8 @@ function mdobj_hessian(mdp::MinDivProb, θ::Vector)
                      solver = mdp.mdnlpe.solver)
     function f(theta)
         @inbounds g.g[:] = mdp.mdnlpe.momf.sᵢ(theta)
-        solve(smd).model.inner.obj_val
-    end 
+        getobjval(solve(smd))
+    end
     Calculus.finite_difference_hessian(f, θ)
 end 
 
