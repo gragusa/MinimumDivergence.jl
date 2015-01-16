@@ -99,6 +99,8 @@ export TruncatedKernel,
        stderr,
        size,
        divergence,
-       getobjhess
+       getobjhess,
+       IV,
+       InstrumentalVaraibleModel 
 
 end # module

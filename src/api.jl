@@ -95,7 +95,6 @@ function solve(mdp::SMinDivProb)
     return mdp
 end
 
-
 function resolve(mdp::MinimumDivergenceProblems, x0::Array{Float64,1})
     lambda0 = Array(Float64, nobs(mdp) + nmom(mdp) + npar(mdp) + 1)
     if length(x0) == nobs(mdp)+npar(mdp)
@@ -198,6 +197,8 @@ nmom(mdp::MDPS)         = mdp.mdnlpe.nmom
 nmom(m::KNITRO.KnitroMathProgModel) = m.numConstr-1
 nmom(m::Ipopt.IpoptMathProgModel) = m.inner.m-1
 
+npar(m::SMinDivProb) = 0
+
 
 
 coef(mdp::MinDivProb)   = mdp.model.inner.x[nobs(mdp)+1:nobs(mdp)+npar(mdp)]
@@ -271,8 +272,13 @@ end
 
 
 ## Dropin for IV only
+function InstrumentalVariableMomentFunction(y::Vector, x::Matrix, z::Matrix)
+    (nr,_) = size(y)
+    yc = reshape(y, nr)
+    InstrumentalVariableMomentFunction(yc, x::Matrix, z::Matrix)
+end
 
-function InstrumentalVariableMomentFunction(y,x,z)
+function InstrumentalVariableMomentFunction(y::Matrix, x::Matrix, z::Matrix)
     nobs, nmom = size(z)
     (_,npar) = size(x)
     _ivderiv = -z'*x
@@ -294,24 +300,40 @@ function InstrumentalVariableMomentFunction(y,x,z)
     MomentFunction( g, g, sw, sn, ∂sw, ∂sn, ∂sl, ∂swl, ∂²swl, IdentityKernel(), nobs, nmom, npar)
 end
 
-
-
 ## Simplified interface for IV
+## To be refined........
 
-type InstrumentalVaraibleModel
-    y::Array{T, 1}
+type InstrumentalVariableModel{T <: FloatingPoint}
+    y::Array{T, 2}
     x::Array{T, 2}
     z::Array{T,2}
     k::SmoothingKernel
 end
 
-InstrumentalVaraibleModel(y,x,z) = InstrumentalVaraibleModel(y, x, z, IdentityKernel())
+typealias IV InstrumentalVariableModel 
 
-function MinDivProb(iv::InstrumentalVaraibleModel, div::Divergence,
-                    θ₀::Array{T,1}, lb::Array{T,1}, ub::Array{T,1})
-    MinDivProb(MomentFunction(iv.y, iv.x, iv.z), div, θ₀, lb, ub)
+IV(y::Matrix, x::Matrix ,z::Matrix) = IV(y, x, z, IdentityKernel())
+
+function MinDivProb{T <: FloatingPoint}(iv::InstrumentalVariableModel{T}, div::Divergence,
+                    θ₀::Array{T,1}, lb::Array{T,1}, ub::Array{T,1}; solver = IpoptSolver())
+    MinDivProb(InstrumentalVariableMomentFunction(iv.y, iv.x, iv.z), div, θ₀, lb, ub, solver = solver)
 end
-    
+
+function MinDivProb{T <: FloatingPoint}(iv::InstrumentalVariableModel{T}, div::Divergence;
+                                        solver = IpoptSolver())
+    θ = ivreg(iv.y, iv.x, iv.z)
+    lb = ones(Float64, length(θ)).*(θ-20.)
+    ub = ones(Float64, length(θ)).*(θ+20.)
+    MinDivProb(InstrumentalVariableMomentFunction(iv.y, iv.x, iv.z), div, θ, lb, ub, solver = solver)
+end
+
+function ivreg(y, x, z)
+    zz = PDMat(z'z)
+    Pz = X_invA_Xt(zz, z)
+    xPz= x'*Pz
+    reshape(xPz*x\xPz*y, size(x)[2])
+end
+
 
 
 
