@@ -82,6 +82,27 @@ function MinDivProb(mf::MomentFunction, div::Divergence, θ₀::Vector,
     MinDivProb(model, mdnlpe, Nothing(), Nothing(), Nothing())
 end
 
+
+function MinDivProb(mf::MomentFunction, div::Divergence, θ₀::Vector,
+                    lb::Vector, ub::Vector, π::Vector; solver=IpoptSolver())
+    model = MathProgBase.MathProgSolverInterface.model(solver)
+    m = mf.nmom
+    n = mf.nobs
+    k = mf.npar
+    u₀ = [π, θ₀]
+    gele = int((n+k)*(m+1)-k)
+    hele = int(n*k + n + (k+1)*k/2)
+    g_L = [zeros(m), n];
+    g_U = [zeros(m), n];
+    u_L = [zeros(n),  lb];
+    u_U = [ones(n)*n, ub];
+    mdnlpe = MDNLPE(mf, div, n, m, k, gele, hele, solver,
+                    Array(Float64, n), Array(Float64, m+1))
+    loadnonlinearproblem!(model, n+k, m+1, u_L, u_U, g_L, g_U, :Min, mdnlpe)
+    setwarmstart!(model, u₀)
+    MinDivProb(model, mdnlpe, Nothing(), Nothing(), Nothing())
+end
+
 function solve(mdp::MinDivProb)
     resolve(mdp, _initial_x(mdp.model))
     if status(mdp)==:Optimal
@@ -326,6 +347,21 @@ function MinDivProb{T <: FloatingPoint}(iv::InstrumentalVariableModel{T}, div::D
     ub = ones(Float64, length(θ)).*(θ+20.)
     MinDivProb(InstrumentalVariableMomentFunction(iv.y, iv.x, iv.z), div, θ, lb, ub, solver = solver)
 end
+
+function MinDivProb{T <: FloatingPoint}(iv::InstrumentalVariableModel{T}, div::Divergence, θ::Vector, π::Vector;
+                                        solver = IpoptSolver())
+    
+    lb = ones(Float64, length(θ)).*(θ-20.)
+    ub = ones(Float64, length(θ)).*(θ+20.)
+    MinDivProb(InstrumentalVariableMomentFunction(iv.y, iv.x, iv.z), div, θ, lb, ub, π, solver = solver)
+end
+
+function MinDivProb{T <: FloatingPoint}(iv::InstrumentalVariableModel{T}, div::Divergence, θ::Vector,
+                                        lb::Vector, ub::Vector, π::Vector; solver = IpoptSolver())    
+    MinDivProb(InstrumentalVariableMomentFunction(iv.y, iv.x, iv.z), div, θ, lb, ub, π, solver = solver)
+end
+
+
 
 function ivreg(y, x, z)
     zz = PDMat(z'z)
