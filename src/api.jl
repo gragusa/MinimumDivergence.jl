@@ -209,7 +209,7 @@ getobjval(mdp::MDPS)    = getobjval(mdp.model)*objscaling(mdp)
 multscaling(mdp::MinDivProb)  = mdp.mdnlpe.momf.kern.κ₁/mdp.mdnlpe.momf.kern.κ₂
 multscaling(mdp::SMinDivProb) = mdp.mdnlpe.mm.kern.κ₁/mdp.mdnlpe.mm.kern.κ₂
 objscaling(mdp::MinDivProb)   = mdp.mdnlpe.momf.kern.scale
-objscaling(mdp::SMinDivProb)  = mdp.mdnlpe.momf.kern.scale
+objscaling(mdp::SMinDivProb)  = mdp.mdnlpe.mm.kern.scale
 
 nobs(mdp::MDPS)         = mdp.mdnlpe.nobs
 npar(mdp::MinDivProb)   = mdp.mdnlpe.npar
@@ -324,23 +324,23 @@ end
 ## Simplified interface for IV
 ## To be refined........
 
-type InstrumentalVariableModel{T <: FloatingPoint}
-    y::Array{T, 2}
-    x::Array{T, 2}
-    z::Array{T,2}
+type InstrumentalVariableModel
+    y::Array{Float64, 2}
+    x::Array{Float64, 2}
+    z::Array{Float64, 2}
     k::SmoothingKernel
 end
 
 typealias IV InstrumentalVariableModel 
 
-IV(y::Matrix, x::Matrix ,z::Matrix) = IV(y, x, z, IdentityKernel())
+IV(y::Array{Float64, 2}, x::Array{Float64, 2} ,z::Array{Float64, 2}) = IV(y, x, z, IdentityKernel())
 
-function MinDivProb{T <: FloatingPoint}(iv::InstrumentalVariableModel{T}, div::Divergence,
-                    θ₀::Array{T,1}, lb::Array{T,1}, ub::Array{T,1}; solver = IpoptSolver())
+function MinDivProb(iv::InstrumentalVariableModel, div::Divergence,
+                    θ₀::Vector, lb::Vector, ub::Vector; solver = IpoptSolver())
     MinDivProb(InstrumentalVariableMomentFunction(iv.y, iv.x, iv.z), div, θ₀, lb, ub, solver = solver)
 end
 
-function MinDivProb{T <: FloatingPoint}(iv::InstrumentalVariableModel{T}, div::Divergence;
+function MinDivProb(iv::InstrumentalVariableModel, div::Divergence;
                                         solver = IpoptSolver())
     θ = ivreg(iv.y, iv.x, iv.z)
     lb = ones(Float64, length(θ)).*(θ-20.)
@@ -348,16 +348,16 @@ function MinDivProb{T <: FloatingPoint}(iv::InstrumentalVariableModel{T}, div::D
     MinDivProb(InstrumentalVariableMomentFunction(iv.y, iv.x, iv.z), div, θ, lb, ub, solver = solver)
 end
 
-function MinDivProb{T <: FloatingPoint}(iv::InstrumentalVariableModel{T}, div::Divergence, θ::Vector, π::Vector;
-                                        solver = IpoptSolver())
+function MinDivProb(iv::InstrumentalVariableModel, div::Divergence,
+                    θ::Vector, π::Vector; solver = IpoptSolver())
     
     lb = ones(Float64, length(θ)).*(θ-20.)
     ub = ones(Float64, length(θ)).*(θ+20.)
     MinDivProb(InstrumentalVariableMomentFunction(iv.y, iv.x, iv.z), div, θ, lb, ub, π, solver = solver)
 end
 
-function MinDivProb{T <: FloatingPoint}(iv::InstrumentalVariableModel{T}, div::Divergence, θ::Vector,
-                                        lb::Vector, ub::Vector, π::Vector; solver = IpoptSolver())    
+function MinDivProb(iv::InstrumentalVariableModel, div::Divergence, θ::Vector,
+                    lb::Vector, ub::Vector, π::Vector; solver = IpoptSolver())    
     MinDivProb(InstrumentalVariableMomentFunction(iv.y, iv.x, iv.z), div, θ, lb, ub, π, solver = solver)
 end
 

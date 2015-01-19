@@ -9,6 +9,8 @@ using Reexport
 using Calculus
 @reexport using Divergences
 @reexport using Ipopt
+using Divergences
+using Ipopt
 using Distributions
 using ArrayViews
 using PDMats
