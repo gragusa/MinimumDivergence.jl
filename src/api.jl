@@ -340,16 +340,14 @@ function MinDivProb(iv::InstrumentalVariableModel, div::Divergence,
     MinDivProb(InstrumentalVariableMomentFunction(iv.y, iv.x, iv.z), div, θ₀, lb, ub, solver = solver)
 end
 
-function MinDivProb(iv::InstrumentalVariableModel, div::Divergence;
-                                        solver = IpoptSolver())
+function MinDivProb(iv::InstrumentalVariableModel, div::Divergence; solver = IpoptSolver())
     θ = ivreg(iv.y, iv.x, iv.z)
     lb = ones(Float64, length(θ)).*(θ-20.)
     ub = ones(Float64, length(θ)).*(θ+20.)
     MinDivProb(InstrumentalVariableMomentFunction(iv.y, iv.x, iv.z), div, θ, lb, ub, solver = solver)
 end
 
-function MinDivProb(iv::InstrumentalVariableModel, div::Divergence,
-                    θ::Vector, π::Vector; solver = IpoptSolver())
+function MinDivProb(iv::InstrumentalVariableModel, div::Divergence, θ::Vector, π::Vector; solver = IpoptSolver())
     
     lb = ones(Float64, length(θ)).*(θ-20.)
     ub = ones(Float64, length(θ)).*(θ+20.)
