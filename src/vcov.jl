@@ -127,7 +127,6 @@ end
 ##     return H
 ## end
 
-
 function mdobj_hessian(mdp::MinDivProb)
     mdobj_hessian(mdp, coef(mdp))
 end
@@ -141,7 +140,7 @@ function mdobj_hessian(mdp::MinDivProb, θ::Vector)
                      solver = mdp.mdnlpe.solver)
     function f(theta)
         @inbounds g.g[:] = mdp.mdnlpe.momf.sᵢ(theta)
-        getobjval(solve(smd))
+        getobjval(solve(smd))/2.0
     end
     Calculus.finite_difference_hessian(f, θ)
 end 
@@ -176,7 +175,11 @@ end
 ## end
 
 function getobjhess!(mdp::MinDivProb)
-    mdp.H = PDMat(mdobj_hessian(mdp, coef(mdp)))
+    mdp.H = try
+        PDMat(mdobj_hessian(mdp, coef(mdp)))
+        catch
+        inv(vcov(mdp, :weighted))
+    end            
     return mdp.H
 end
 
