@@ -62,6 +62,23 @@ function MinDivProb(mm::MomentMatrix, div::Divergence; solver = IpoptSolver())
     SMinDivProb(model, mdnlpe)
 end
 
+function MinDivProb(mm::MomentMatrix, div::ChiSquared; solver = IpoptSolver())
+    model = MathProgBase.MathProgSolverInterface.model(solver)
+    n, m = size(mm)
+    gele = int(n*(m+1))
+    hele = int(n)
+    g_L = [mm.g_L, n]
+    g_U = [mm.g_U, n]
+    u_L = [ones(n)*(-Inf)];
+    u_U = [ones(n)*(+Inf)];
+    mdnlpe = SMDNLPE(mm, div, n, mm.m_eq, mm.m_ineq, m, gele, hele, solver)
+    loadnonlinearproblem!(model, n, m+1, u_L, u_U, g_L, g_U, :Min, mdnlpe)
+    setwarmstart!(model, ones(n))
+    SMinDivProb(model, mdnlpe)
+end
+
+
+
 function MinDivProb(mf::MomentFunction, div::Divergence, θ₀::Vector,
                     lb::Vector, ub::Vector; solver=IpoptSolver())
     model = MathProgBase.MathProgSolverInterface.model(solver)
