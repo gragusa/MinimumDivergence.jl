@@ -9,6 +9,12 @@ coef(mdp)
 vcov(mdp)
 @time vcov(mdp, :hessian)
 
+mdp = MinDivProb(IV(y,x,z), ChiSquared(), solver = IpoptSolver(print_level = 0));
+@time solve(mdp);
+
+
+
+
 g(θ) = z.*(y-x*θ)
 θ₀ = [  0.00]
 lb = [-20.00]
