@@ -103,6 +103,47 @@ function MinDivProb(mf::MomentFunction, div::Divergence, θ₀::Vector,
     MinDivProb(model, mdnlpe, Nothing(), Nothing(), Nothing())
 end
 
+function MinDivProb(mf::MomentFunction, div::ChiSquared, θ₀::Vector,
+                    lb::Vector, ub::Vector; solver=IpoptSolver())
+    model = MathProgBase.MathProgSolverInterface.model(solver)
+    m = mf.nmom
+    n = mf.nobs
+    k = mf.npar
+    u₀ = [ones(n), θ₀]
+    gele = int((n+k)*(m+1)-k)
+    hele = int(n*k + n + (k+1)*k/2)
+    g_L = [zeros(m), n];
+    g_U = [zeros(m), n];
+    u_L = [ones(n)*(-Inf),  lb];
+    u_U = [ones(n)*(+Inf), ub];
+    mdnlpe = MDNLPE(mf, div, n, m, k, gele, hele, solver,
+                    Array(Float64, n), Array(Float64, m+1))
+    loadnonlinearproblem!(model, n+k, m+1, u_L, u_U, g_L, g_U, :Min, mdnlpe)
+    setwarmstart!(model, u₀)
+    MinDivProb(model, mdnlpe, Nothing(), Nothing(), Nothing())
+end
+
+
+function MinDivProb(mf::MomentFunction, div::Divergence, θ₀::Vector,
+                    lb::Vector, ub::Vector, π::Vector; solver=IpoptSolver())
+    model = MathProgBase.MathProgSolverInterface.model(solver)
+    m = mf.nmom
+    n = mf.nobs
+    k = mf.npar
+    u₀ = [π, θ₀]
+    gele = int((n+k)*(m+1)-k)
+    hele = int(n*k + n + (k+1)*k/2)
+    g_L = [zeros(m), n];
+    g_U = [zeros(m), n];
+    u_L = [ones(n)*(-Inf),  lb];
+    u_U = [ones(n)*(+Inf), ub];
+    mdnlpe = MDNLPE(mf, div, n, m, k, gele, hele, solver,
+                    Array(Float64, n), Array(Float64, m+1))
+    loadnonlinearproblem!(model, n+k, m+1, u_L, u_U, g_L, g_U, :Min, mdnlpe)
+    setwarmstart!(model, u₀)
+    MinDivProb(model, mdnlpe, Nothing(), Nothing(), Nothing())
+end
+
 function solve(mdp::MinDivProb)
     resolve(mdp, _initial_x(mdp.model))
     if status(mdp)==:Optimal
