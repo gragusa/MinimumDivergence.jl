@@ -33,26 +33,30 @@ momf_var(mdp::MinDivProb) = momf_var(mdp::MinDivProb, :weighted)
 ## Return a (m×k) matrix
 ## TODO: Should I consider the case in which <(>) present
 function momf_jac(mdp::MinDivProb, ver::Symbol)
-	if ver==:weighted
-		mdp.mdnlpe.momf.∂∑pᵢsᵢ(coef(mdp))
-	elseif ver==:unweighted
-		mdp.mdnlpe.momf.∂∑sᵢ(coef(mdp))
-	elseif ver==:unsmoothed
-		mdp.mdnlpe.momf.∂∑pᵢgᵢ(coef(mdp))
-	elseif ver==:unweightedUnsmoothed
-		mdp.mdnlpe.momf.∂∑gᵢ(coef(mdp))
-	end
+    if ver==:weighted
+        mdp.mdnlpe.momf.∂∑pᵢsᵢ(coef(mdp))
+    elseif ver==:unweighted
+        mdp.mdnlpe.momf.∂∑sᵢ(coef(mdp))
+    elseif ver==:unsmoothed
+        mdp.mdnlpe.momf.∂∑pᵢgᵢ(coef(mdp))
+    elseif ver==:unweightedUnsmoothed
+        mdp.mdnlpe.momf.∂∑gᵢ(coef(mdp))
+    end
 end
 
 function momf_var(mdp::MinDivProb, ver::Symbol)
-	if ver==:weighted
- 		gn = mdp.mdnlpe.momf.sᵢ(coef(mdp))
- 		V = (getmdweights(mdp).*gn)'*gn
- 	elseif ver==:unweighted
- 		gn = mdp.mdnlpe.momf.sᵢ(coef(mdp))
- 		V = gn'*gn
-	end
- 	return PDMat(V)
+    gn = mdp.mdnlpe.momf.sᵢ(coef(mdp))
+    if ver==:weighted     
+        try
+            V = (getmdweights(mdp).*gn)'*gn
+            PDMat(V)
+        catch
+            V = gn'*gn
+            PDMat(V)
+        end 
+    elseif ver==:unweighted
+        PDMat(gn'*gn)
+    end
 end
 
 
@@ -136,8 +140,7 @@ function mdobj_hessian(mdp::MinDivProb, θ::Vector)
     λ = zeros(m)
     p  = ones(n)    
     g  = MomentMatrix(Array(Float64, n, m))
-    smd = MinDivProb(g, divergence(mdp),
-                     solver = mdp.mdnlpe.solver)
+    smd = MinDivProb(g, divergence(mdp), solver = mdp.mdnlpe.solver)
     function f(theta)
         @inbounds g.g[:] = mdp.mdnlpe.momf.sᵢ(theta)
         getobjval(solve(smd))/2.0
@@ -177,7 +180,7 @@ end
 function getobjhess!(mdp::MinDivProb)
     mdp.H = try
         PDMat(mdobj_hessian(mdp, coef(mdp)))
-        catch
+    catch
         inv(vcov(mdp, :weighted))
     end            
     return mdp.H
@@ -211,15 +214,15 @@ function vcov(mdp::MinDivProb, ver::Symbol)
         vcov!(mdp, :weighted)
         mdp.Vʷ
     else
-		if ver==:weighted
-      return mdp.Vʷ
-  elseif ver==:hessian
-      if typeof(mdp.H) <: Nothing
-          getobjhess!(mdp)
-      end
-			PDMat(Xt_invA_X(mdp.Vʷ, full(inv(mdp.H))))
-  end
-	end
+        if ver==:weighted
+            return mdp.Vʷ
+        elseif ver==:hessian
+            if typeof(mdp.H) <: Nothing
+                getobjhess!(mdp)
+            end
+            PDMat(Xt_invA_X(mdp.Vʷ, full(inv(mdp.H))))
+        end
+    end
 end
 
 vcov(mdp::MinDivProb) = vcov(mdp, :weighted)
