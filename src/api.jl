@@ -386,12 +386,19 @@ type InstrumentalVariableModel
     y::Array{Float64, 2}
     x::Array{Float64, 2}
     z::Array{Float64, 2}
+    Pz::Array{Float64, 2}
     k::SmoothingKernel
 end
 
 typealias IV InstrumentalVariableModel 
 
-IV(y::Array{Float64, 2}, x::Array{Float64, 2} ,z::Array{Float64, 2}) = IV(y, x, z, IdentityKernel())
+
+
+function IV(y::Array{Float64, 2}, x::Array{Float64, 2} ,z::Array{Float64, 2})
+    zz = PDMat(z'z)
+    Pz = X_invA_Xt(zz, z)
+    IV(y, x, z, Pz, IdentityKernel())
+end 
 
 function MinDivProb(iv::InstrumentalVariableModel, div::Divergence,
                     θ₀::Vector, lb::Vector, ub::Vector; solver = IpoptSolver())
