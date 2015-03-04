@@ -1,7 +1,7 @@
 using MinimumDivergence
 using ModelsGenerators
 
-y, x, z = randiv(n = 500, k = 3, m = 15);
+y, x, z = randiv(n = 1500, k = 3, m = 5, CP = 10);
 
 mdp = MinDivProb(IV(y,x,z), KullbackLeibler(), solver = IpoptSolver(print_level = 0));
 @time solve(mdp);

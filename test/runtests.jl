@@ -45,7 +45,7 @@ facts("Check basic interface for estimating θ") do
         @fact stderr(minkl) => roughly([0.1205430380097216,0.3269700255069213])        
         @fact getobjval(minkl)  => greater_than(0)
         @fact full(vcov!(minkl, :hessian)) => anything
-        @fact stderr(minkl, :hessian) => roughly([0.07308539459282029,0.19907310126867236])
+        @fact stderr(minkl, :hessian) => roughly([0.14617065585307037 0.3981458334239717])
 
         mf = MomentFunction(g, :dual, nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
         minkl = MinDivProb(mf, RKL(), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
