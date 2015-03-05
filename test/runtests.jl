@@ -42,10 +42,10 @@ facts("Check basic interface for estimating θ") do
         @fact coef(minkl) => roughly([0.10103176863782486,-0.09024762288640839])
         @fact full(vcov(minkl, :weighted)) => roughly([0.014530624012613189 -0.019653655298360027
                                             -0.019653655298360027 0.10690939757999675])
-        @fact stderr(minkl) => roughly([0.1205430380097216,0.3269700255069213])        
+        @fact stderr(minkl) => roughly([0.1205430380097216, 0.3269700255069213])        
         @fact getobjval(minkl)  => greater_than(0)
         @fact full(vcov!(minkl, :hessian)) => anything
-        @fact stderr(minkl, :hessian) => roughly([0.14617065585307037 0.3981458334239717])
+        @fact stderr(minkl, :hessian) => roughly([0.14617065585307037, 0.3981458334239717])
 
         mf = MomentFunction(g, :dual, nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
         minkl = MinDivProb(mf, RKL(), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
