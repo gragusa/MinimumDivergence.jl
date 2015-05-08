@@ -6,7 +6,7 @@ module MinimumDivergence
 ##
 ##############################################################################
 using Reexport
-using Calculus
+##using Calculus
 @reexport using Divergences
 @reexport using Ipopt
 using Divergences
@@ -17,6 +17,8 @@ using PDMats
 using StatsBase
 using MathProgBase
 using ForwardDiff
+ 
+import ForwardDiff: Dual, epsilon, GraDual
 
 using KNITRO
 
@@ -62,6 +64,7 @@ import StatsBase: coef, coeftable, confint, loglikelihood, nobs, stderr, vcov
 ##############################################################################
 include("types.jl")
 include("smoothing.jl")
+include("derivatives.jl")
 include("momfun.jl")
 include("interface.jl")
 include("interface_simple.jl")
@@ -70,8 +73,8 @@ include("methods.jl")
 include("utils.jl")
 include("vcov.jl")
 
-global __λ
-global __p
+## global __λ
+## global __p
 
 ##############################################################################
 ##

@@ -14,13 +14,13 @@ features_available(d::MDNLPE) = [:Grad, :Jac, :Hess]
 eval_f(d::MDNLPE, u) = Divergences.evaluate(d.div, u[1:d.nobs])
 
 function eval_g(d::MDNLPE, g, u)
-  n = d.nobs
-  k = d.npar
-  m = d.nmom
-  @inbounds θ   = u[(n+1):(n+k)]
-  @inbounds p   = u[1:n]
-  @inbounds g[1:m]  = d.momf.wsn(θ, p)
-  @inbounds g[m+1]  = sum(p)
+    n = d.nobs
+    k = d.npar
+    m = d.nmom
+    θ = u[(n+1):(n+k)]
+    p = u[1:n]
+    @inbounds g[1:m]  = d.momf.wsn(θ, p)
+    @inbounds g[m+1]  = sum(p)
 end
 
 function eval_grad_f(d::MDNLPE, grad_f, u)
@@ -82,43 +82,42 @@ function hesslag_structure(d::MDNLPE)
 end
 
 function eval_jac_g(d::MDNLPE, J, u)
- n = d.nobs
- k = d.npar
- m = d.nmom
+    n = d.nobs
+    k = d.npar
+    m = d.nmom
+    
+    θ  = u[(n+1):(n+k)]
+    p  = u[1:n]
+    g  = d.momf.s(θ)
+    Dws = d.momf.Dws(θ, p)
 
- @inbounds global __p = u[1:n]
- @inbounds θ          = u[(n+1):(n+k)]
- g                    = d.momf.sᵢ(θ)
- ∂∑pᵢsᵢ               = d.momf.∂∑pᵢsᵢ(θ)
-
- for j=1:m+1, i=1:n+k
-  if(j<=m && i<=n)
-    @inbounds J[i+(j-1)*(n+k)] = g[i+(j-1)*n]
-  elseif (j<=m && i>n)
-    @inbounds J[i+(j-1)*(n+k)] = ∂∑pᵢsᵢ[j, i-n]
-  elseif (j>m && i<=n)
-    @inbounds J[i+(j-1)*(n+k)] = 1.0
-  end
- end
+    for j=1:m+1, i=1:n+k
+        if(j<=m && i<=n)
+            @inbounds J[i+(j-1)*(n+k)] = g[i+(j-1)*n]
+        elseif (j<=m && i>n)
+            @inbounds J[i+(j-1)*(n+k)] = Dws[j, i-n]
+        elseif (j>m && i<=n)
+            @inbounds J[i+(j-1)*(n+k)] = 1.0
+        end
+    end
 end
 
 function eval_hesslag(d::MDNLPE, H, u, σ, λ)
-  n = d.nobs
-  k = d.npar
-  m = d.nmom
-  @inbounds global __p  = u[1:n]
-  @inbounds global __λ  = λ[1:m]
-  @inbounds θ           = u[(n+1):(n+k)]
-  ∂sᵢλ        = transpose(d.momf.∂sᵢλ(θ))
-  if σ==0
-    for j=1:n
-      @inbounds H[j] = 0.0
-    end
-  else
-    for j=1:n
-      @inbounds H[j] = σ*Divergences.hessian(d.div, u[j])
-    end
+    n = d.nobs
+    k = d.npar
+    m = d.nmom
+    θ = u[(n+1):(n+k)]
+    p = u[1:n]
+    
+    if σ==0
+        for j=1:n
+            @inbounds H[j] = 0.0
+        end
+    else
+      for j=1:n
+          @inbounds H[j] = σ*Divergences.hessian(d.div, u[j])
+      end
   end
-  @inbounds H[n+1:n*k+n] = ∂sᵢλ[:]
-  @inbounds H[n*k+n+1:d.hele] = gettril(d.momf.∂²sᵢλ(θ))
+    @inbounds H[n+1:n*k+n] = transpose(d.momf.Dsl(θ, λ[1:m]))
+    @inbounds H[n*k+n+1:d.hele] = gettril(d.momf.Hwsl(θ, p, λ[1:m]))
 end

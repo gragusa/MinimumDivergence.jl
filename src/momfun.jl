@@ -5,60 +5,48 @@ nobs(mf::MomentFunction) = mf.nobs
 nmom(mf::MomentFunction) = mf.nmom
 npar(mf::MomentFunction) = mf.npar
 
-function get_mom_deriv(g::Function, dtype::Symbol, k::SmoothingKernel,
-                       nobs, nmom, npar)
-
+function get_mom_deriv(g::Function, dtype::Symbol, k::SmoothingKernel, nobs, nmom, npar)
+    ## Smoothed moment condition
     s(θ::Vector)  = smooth(g(θ), k)
+    ## Average moment condition
+    sn(θ::Vector)  = mean(s(θ), 1)    
+    ## Weighted moment conditions 
+    ws(θ::Vector, p::Vector) = s(θ)'*p 
+    sl(θ::Vector, λ::Vector) = s(θ)*λ 
+    wsl(θ::Vector, p::Vector, λ::Vector) = (p'*s(θ)*λ)[1]
+    ## Weighted moment conditions (inplace version)
+    ws!(θ::Vector, jac_out, p::Vector) = jac_out[:] = s(θ)'*p 
+    sl!(θ::Vector, jac_out, λ::Vector) = jac_out[:] =s(θ)*λ 
+    wsl!(θ::Vector, jac_out,  p::Vector, λ::Vector) = jac_out[:] = (p'*s(θ)*λ)[1]        
+    ## Smoothed average moment conditions
     sn(θ::Vector) = sum(s(θ), 1)
-    
-    sw(θ::Vector, p::Vector) = s(θ)'*p
-    sl(θ::Vector, λ::Vector) = s(θ)*λ
-    swl(θ::Vector, p::Vector, λ::Vector) = (p'*s(θ)*λ)[1]
-    
-    sw_closure(θ::Vector) = sw(θ, __p::Array{Float64, 1})
-    sl_closure(θ::Vector) = sl(θ, __λ::Array{Float64, 1})
-    swl_closure(θ::Vector) = swl(θ, __p::Array{Float64, 1}, __λ::Array{Float64, 1})
-    
-    sn!(θ::Vector, gg) = gg[:] = sn(θ)
-    sw_closure!(θ::Vector, gg)  = gg[:] = sw(θ, __p::Array{Float64, 1})
-    sl_closure!(θ::Vector, gg)  = gg[:] = sl(θ, __λ::Array{Float64, 1})
-    swl_closure!(θ::Vector, gg) = gg[:] = swl(θ, __p::Array{Float64, 1}, __λ::Array{Float64, 1})
-    
+
     if dtype==:typed
-        ∂sw   = ForwardDiff.forwarddiff_jacobian(sw_closure,
-                                                 Float64, fadtype=:typed)
-        ∂sn   = ForwardDiff.forwarddiff_jacobian(sn,
-                                                 Float64, fadtype=:typed)
-        ∂sl   = ForwardDiff.forwarddiff_jacobian(sl_closure,
-                                                 Float64, fadtype=:typed)
-        ∂swl  = ForwardDiff.forwarddiff_jacobian(swl_closure,
-                                                 Float64, fadtype=:typed)
-        ∂²swl = ForwardDiff.forwarddiff_hessian(swl_closure,
-                                                Float64, fadtype=:typed)
-    elseif dtype==:dual
-        ∂sw   = ForwardDiff.forwarddiff_jacobian(sw_closure!,
-                                                 Float64, fadtype=:dual,
-                                                 n = npar, m = nmom)
-        ∂sn   = ForwardDiff.forwarddiff_jacobian(sn!,
-                                                 Float64, fadtype=:dual,
-                                                 n = npar, m = nmom)
-        ∂sl   = ForwardDiff.forwarddiff_jacobian(sl_closure!,
-                                                 Float64, fadtype=:dual,
-                                                 n = npar, m = nobs)
-        ∂swl  = ForwardDiff.forwarddiff_jacobian(swl_closure!,
-                                                 Float64, fadtype=:dual,
-                                                 n = npar, m = 1)
-        ∂²swl = ForwardDiff.forwarddiff_hessian(swl_closure,
-                                                Float64, fadtype=:typed)
+        ## First derivative
+        Dsn  = ForwardDiff.dual_fad_gradient(sn,  Float64)
+        Dws  = args_dual_fad_gradient(sw,  Float64)
+        Dsl  = args_dual_fad_gradient(sl,  Float64)
+        Dwsl = args_dual_fad_gradient(wsl, Float64)
+        ## Second derivative
+        Hwsl = args_typed_fad_hessian(wsl, Float64)
+    elseif dtype==:typed
+        Dsn  = ForwardDiff.typed_fad_gradient(sn,  Float64)
+        Dws  = args_typed_fad_gradient(sw,  Float64)
+        Dsl  = args_typed_fad_gradient(sl,  Float64)
+        Dwsl = args_typed_fad_gradient(wsl, Float64)
+        ## Second derivative
+        Hwsl = args_typed_fad_hessian(wsl, Float64)
     elseif dtype==:diff
-        ∂sw(θ::Vector)   = Calculus.jacobian(sw_closure, θ, :central)
-        ∂sn(θ::Vector)   = Calculus.jacobian(sn, θ, :central)
-        ∂sl(θ::Vector)   = Calculus.jacobian(sl_closure, θ, :central)
-        ∂swl(θ::Vector)  = Calculus.jacobian(swl_closure, Float64, :central)
-        ∂²swl(θ::Vector) = Calculus.hessian(swl_closure, θ, :central)
+        Dsn(θ::Vector, args...)  = fd_jacobian(sn,  θ, :central, args...)
+        Dws(θ::Vector, args...)  = fd_jacobian(ws,  θ, :central, args...)
+        Dsl(θ::Vector, args...)  = fd_jacobian(sl,  θ, :central, args...)
+        Dwsl(θ::Vector, args...) = fd_jacobian(wsl, θ, :central, args...)
+        Hwsl(θ::Vector, args...) = fd_hessian(wsl,  θ, :central, args...)
     end
-    return (g, s, sw, sn, ∂sw, ∂sn, ∂sl, ∂swl, ∂²swl)
-end
+
+    return (g, s, ws, sn, Dws, Dsn, Dsl, Dwsl, Hwsl)
+end 
+
 
 function MomentMatrix(g_eq::AbstractMatrix,
                       g_ineq::AbstractMatrix,

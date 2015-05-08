@@ -1,19 +1,19 @@
 abstract SmoothingKernel
 
 type MomentFunction
-  gᵢ::Function        ## Moment Function
-  sᵢ::Function        ## Smoothed moment function
-  wsn::Function       ## (m×1) ∑pᵢ sᵢ
-  sn::Function        ## ∑sᵢ(θ)
-  ∂∑pᵢsᵢ::Function    ## (k×m)
-  ∂∑sᵢ::Function      ## (k×m)
-  ∂sᵢλ::Function      ## (n×k)
-  ∑pᵢ∂sᵢλ::Function   ## (k×1)
-  ∂²sᵢλ::Function     ## (kxk)
-  kern::SmoothingKernel
-  nobs::Int64
-  nmom::Int64
-  npar::Int64
+    g::Function            ## Moment Function
+    s::Function            ## Smoothed moment function
+    ws::Function           ## (m×1) ∑pᵢ sᵢ
+    sn::Function           ## ∑sᵢ(θ)
+    Dws::Function          ## (k×m)
+    Dsn::Function          ## (k×m)
+    Dsl::Function          ## (n×k)
+    Dwsl::Function         ## (k×1)
+    Hwsl::Function         ## (kxk)
+    kern::SmoothingKernel
+    nobs::Int64
+    nmom::Int64
+    npar::Int64
 end
 
 type MomentMatrix
