@@ -1,6 +1,6 @@
 ## Dual based jacobian wich allows arguments
 
-function args_dual_fad{T<:Real}(f!::Function, x::Vector{T}, jac_out::Matrix{T}, dual_in, dual_out)
+function args_dual_fad{T<:Real}(f!::Function, x::Vector{T}, jac_out::Matrix{T}, dual_in, dual_out, args...)
   for i in 1:length(x)
     dual_in[i] = Dual(x[i], zero(T))
   end
@@ -17,7 +17,7 @@ end
 function args_dual_fad_jacobian!{T<:Real}(f!::Function, ::Type{T}; n::Int=1, m::Int=1)
   dual_in = Array(Dual{T}, n)
   dual_out = Array(Dual{T}, m)
-  g!(x, jac_out, args...) = my_dual_fad(f!, x, jac_out, dual_in, dual_out, args...)
+  g!(x, jac_out, args...) = args_dual_fad(f!, x, jac_out, dual_in, dual_out, args...)
   return g!
 end
  
@@ -42,7 +42,7 @@ end
 
 
 function args_typed_fad_hessian{T<:Real}(f::Function, ::Type{T})
-  g(x::Vector{T}, args...) = hessian(f(FADHessian(x), args...))
+  g(x::Vector{T}, args...) = ForwardDiff.hessian(f(FADHessian(x), args...))
   return g
 end
 
@@ -90,13 +90,12 @@ end
 ##
 ##############################################################################
 
-function fd_jacobian!{R <: Number,
-                      S <: Number,
-                      T <: Number}(f::Function,
-                                   x::Vector{R},
-                                   f_x::Vector{S},
-                                   J::Array{T},
-                                   dtype::Symbol = :central, args...)
+function fd_jacobian!{R <: Number, S <: Number, T <: Number}(f::Function,
+                                                             x::Vector{R},
+                                                             f_x::Vector{S},
+                                                             J::Array{T},
+                                                             dtype::Symbol = :central,
+                                                             args...)
     # What is the dimension of x?
     m, n = size(J)
 
@@ -128,8 +127,8 @@ function fd_jacobian!{R <: Number,
     return
 end
 function fd_jacobian{T <: Number}(f::Function,
-                                                 x::Vector{T},
-                                                 dtype::Symbol = :central, args...)
+                                  x::Vector{T},
+                                  dtype::Symbol = :central, args...)
     # Establish a baseline for f_x
     f_x = f(x, args...)
 
@@ -183,6 +182,7 @@ function fd_hessian!{S <: Number,
     end
     Base.LinAlg.copytri!(H,'U')
 end
+
 function fd_hessian{T <: Number}(f::Function,
                                  x::Vector{T}, args...)
     # What is the dimension of x?

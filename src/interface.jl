@@ -11,86 +11,74 @@ MathProgBase.isobjquadratic(d::MDNLPE) = false
 MathProgBase.isconstrlinear(d::MDNLPE, i::Int64) = false
 
 features_available(d::MDNLPE) = [:Grad, :Jac, :Hess]
-eval_f(d::MDNLPE, u) = Divergences.evaluate(d.div, u[1:d.nobs])
+eval_f(d::MDNLPE, u) = Divergences.evaluate(d.div, u[1:d.momf.nobs])
 
 function eval_g(d::MDNLPE, g, u)
-    n = d.nobs
-    k = d.npar
-    m = d.nmom
-    θ = u[(n+1):(n+k)]
+    n, m, k = size(d.momf)
     p = u[1:n]
-    @inbounds g[1:m]  = d.momf.wsn(θ, p)
+    θ = u[(n+1):(n+k)]
+    @inbounds g[1:m]  = d.momf.ws(θ, p)
     @inbounds g[m+1]  = sum(p)
 end
 
 function eval_grad_f(d::MDNLPE, grad_f, u)
-  n = d.nobs
-  k = d.npar
-  m = d.nmom
-  for j=1:n
-    @inbounds grad_f[j] = Divergences.gradient(d.div, u[j])
-  end
-  for j=(n+1):(n+k)
-    @inbounds grad_f[j] = 0.0
-  end
+    n, m, k = size(d.momf)
+    for j=1:n
+        @inbounds grad_f[j] = Divergences.gradient(d.div, u[j])
+    end
+    for j=(n+1):(n+k)
+        @inbounds grad_f[j] = 0.0
+    end
 end
 
 function jac_structure(d::MDNLPE)
-  n = d.nobs
-  k = d.npar
-  m = d.nmom
-  rows = Array(Int64, d.gele)
-  cols = Array(Int64, d.gele)
-  for j = 1:m+1, r = 1:n+k
+    n, m, k = size(d.momf)
+    rows = Array(Int64, d.gele)
+    cols = Array(Int64, d.gele)
+    for j = 1:m+1, r = 1:n+k
         if !((r > n) && (j==m+1))
-          @inbounds rows[r+(j-1)*(n+k)] = j
-          @inbounds cols[r+(j-1)*(n+k)] = r
+            @inbounds rows[r+(j-1)*(n+k)] = j
+            @inbounds cols[r+(j-1)*(n+k)] = r
         end
-      end
-  rows, cols
+    end
+    rows, cols
 end
 
 function hesslag_structure(d::MDNLPE)
-  n = d.nobs
-  k = d.npar
-  m = d.nmom
-
-  rows = Array(Int64, d.hele)
-  cols = Array(Int64, d.hele)
-  for j = 1:n
-    @inbounds rows[j] = j
-    @inbounds cols[j] = j
-  end
-  idx = n+1
-
-  for s = 1:n
+    n, m, k = size(d.momf)
+    rows = Array(Int64, d.hele)
+    cols = Array(Int64, d.hele)
+    for j = 1:n
+        @inbounds rows[j] = j
+        @inbounds cols[j] = j
+    end
+    idx = n+1
+    
+    for s = 1:n
+        for j = 1:k
+            @inbounds rows[idx] = n+j
+            @inbounds cols[idx] = s
+            idx += 1
+        end
+    end
+    
     for j = 1:k
-      @inbounds rows[idx] = n+j
-      @inbounds cols[idx] = s
-      idx += 1
+        for s = 1:j
+            @inbounds rows[idx] = n+j
+            @inbounds cols[idx] = n+s
+            idx += 1
+        end
     end
-  end
-
-  for j = 1:k
-    for s = 1:j
-      @inbounds rows[idx] = n+j
-      @inbounds cols[idx] = n+s
-      idx += 1
-    end
-  end
-  rows, cols
+    rows, cols
 end
 
 function eval_jac_g(d::MDNLPE, J, u)
-    n = d.nobs
-    k = d.npar
-    m = d.nmom
-    
-    θ  = u[(n+1):(n+k)]
+    n, m, k = size(d.momf)
     p  = u[1:n]
+    θ  = u[(n+1):(n+k)]
     g  = d.momf.s(θ)
     Dws = d.momf.Dws(θ, p)
-
+    
     for j=1:m+1, i=1:n+k
         if(j<=m && i<=n)
             @inbounds J[i+(j-1)*(n+k)] = g[i+(j-1)*n]
@@ -103,12 +91,9 @@ function eval_jac_g(d::MDNLPE, J, u)
 end
 
 function eval_hesslag(d::MDNLPE, H, u, σ, λ)
-    n = d.nobs
-    k = d.npar
-    m = d.nmom
-    θ = u[(n+1):(n+k)]
+    n, m, k = size(d.momf)
     p = u[1:n]
-    
+    θ = u[(n+1):(n+k)]        
     if σ==0
         for j=1:n
             @inbounds H[j] = 0.0

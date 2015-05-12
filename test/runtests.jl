@@ -19,10 +19,10 @@ function dgp_iv(n::Int64        = 100,
 end
 
 srand(1)
-y, x, z = dgp_iv(100)
+y, x, z = dgp_iv(10000)
 g(θ) = z.*(y-x*θ)
 
-solver = IpoptSolver()
+solver = IpoptSolver(print_level = 1)
 
 KL = KullbackLeibler
 RKL = ReverseKullbackLeibler
@@ -36,61 +36,62 @@ ub = [ 20.00,  20.00]
 facts("Check basic interface for estimating θ") do
     context("i.i.d - MD with different divergences") do
         mf = MomentFunction(g, :dual, nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
-        minkl = MinDivProb(mf, KL(), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
-        solve(minkl)
-        @fact status(minkl) => :Optimal
-        @fact coef(minkl) => roughly([0.10103176863782486,-0.09024762288640839])
-        @fact full(vcov(minkl, :weighted)) => roughly([0.014530624012613189 -0.019653655298360027
+        p = MDEstimator(mf, KL(), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
+        solve(p)
+        @fact status(p) => :Optimal
+        @fact coef(p) => roughly([0.10103176863782486,-0.09024762288640839])
+        @fact vcov(p, :weighted) => roughly([0.014530624012613189 -0.019653655298360027
                                             -0.019653655298360027 0.10690939757999675])
-        @fact stderr(minkl) => roughly([0.1205430380097216, 0.3269700255069213])        
-        @fact getobjval(minkl)  => greater_than(0)
-        @fact full(vcov!(minkl, :hessian)) => anything
-        @fact stderr(minkl, :hessian) => roughly([0.14617065585307037, 0.3981458334239717])
+        @fact stderr(p) => roughly([0.1205430380097216, 0.3269700255069213])        
+        @fact getobjval(p)  => greater_than(0)
+        
+        @fact vcov(p, :hessian) => anything
+        @fact stderr(p, :hessian) => roughly([0.14617065585307037, 0.3981458334239717])
 
         mf = MomentFunction(g, :dual, nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
-        minkl = MinDivProb(mf, RKL(), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
-        solve(minkl)
-        @fact status(minkl) => :Optimal
+        p = MDEstimator(mf, RKL(), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
+        solve(p)
+        @fact status(p) => :Optimal
         
         mf = MomentFunction(g, :dual, nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
-        minkl = MinDivProb(mf, CressieRead(.5), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
-        solve(minkl)
-        @fact status(minkl) => :Optimal        
+        p = MDEstimator(mf, CressieRead(.5), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
+        solve(p)
+        @fact status(p) => :Optimal        
         
         mf = MomentFunction(g, :dual, nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
-        minkl = MinDivProb(mf, CressieRead(-.5), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
-        solve(minkl)
-        @fact status(minkl) => :Optimal
+        p = MDEstimator(mf, CressieRead(-.5), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
+        solve(p)
+        @fact status(p) => :Optimal
 
         mf = MomentFunction(g, :dual, nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
-        minkl = MinDivProb(mf, MKL(.1), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
-        solve(minkl)
-        @fact status(minkl) => :Optimal
+        p = MDEstimator(mf, MKL(.1), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
+        solve(p)
+        @fact status(p) => :Optimal
 
         mf = MomentFunction(g, :dual, nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
-        minkl = MinDivProb(mf, MRKL(.1), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
-        solve(minkl)
-        @fact status(minkl) => :Optimal
+        p = MDEstimator(mf, MRKL(.1), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
+        solve(p)
+        @fact status(p) => :Optimal
 	end
 
     context("time series - MD with Truncated Kernel") do
-        mf = MomentFunction(g, :dual, TruncatedKernel(1), nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
-        minkl = MinDivProb(mf, KL(), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
+        mf = MomentFunction(g, :dual, MinimumDivergence.TruncatedSmoother(1), nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
+        minkl = MDEstimator(mf, KL(), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
         solve(minkl)
         @fact status(minkl) => :Optimal
         
-        mf = MomentFunction(g, :dual, TruncatedKernel(1), nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
-        minkl = MinDivProb(mf, RKL(), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
+        mf = MomentFunction(g, :dual, TruncatedSmoother(1), nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
+        minkl = MDEstimator(mf, RKL(), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
         solve(minkl)
         @fact status(minkl) => :Optimal
         
-        mf = MomentFunction(g, :dual, TruncatedKernel(1), nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
-        minkl = MinDivProb(mf, MRKL(.1), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
+        mf = MomentFunction(g, :dual, TruncatedSmoother(1), nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
+        minkl = MDEstimator(mf, MRKL(.1), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
         solve(minkl)
         @fact status(minkl) => :Optimal
         
-        mf = MomentFunction(g, :dual, TruncatedKernel(1), nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
-        minkl = MinDivProb(mf, MKL(.1), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
+        mf = MomentFunction(g, :dual, TruncatedSmoother(1), nobs = size(z,1), nmom = size(z,2), npar = size(x, 2))
+        minkl = MDEstimator(mf, MKL(.1), θ₀, lb, ub, solver=IpoptSolver(print_level=0))
         solve(minkl)
         @fact status(minkl) => :Optimal
  end

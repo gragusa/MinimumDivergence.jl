@@ -1,26 +1,92 @@
 using MinimumDivergence
-using Ipopt
+#using Ipopt
 #conditional using/testing a package?
 #using KNITRO
 using ModelsGenerators
-using ForwardDiff
-using Divergences
+#using ForwardDiff
+#using Divergences
 using Base.Test
 
 srand(2)
-y, x, z = randiv(100, k=2)
+y, x, z = randiv(100, 5)
+x = [x randn(100)];
+z = [z randn(100)];
 g(θ) = z.*(y-x*θ)
-mf = MomentFunction(g, :dual, nobs = 100, nmom = 6, npar = 2)
+mf_dual = MomentFunction(g, :dual,  nobs = 100, nmom = 6, npar = 2)
+mf_typd = MomentFunction(g, :typed, nobs = 100, nmom = 6, npar = 2)
+mf_diff = MomentFunction(g, :diff,  nobs = 100, nmom = 6, npar = 2)
+
+theta = [.1, .1];
+
+mf_dual.sn(theta)
+mf_typd.sn(theta)
+mf_diff.sn(theta)
+
+mf_dual.Dsn(theta)
+mf_typd.Dsn(theta)
+mf_diff.Dsn(theta)
+
+mf_dual.Dws(theta, ones(100))
+mf_typd.Dws(theta, ones(100))
+mf_diff.Dws(theta, ones(100))
+
+mf_dual.Dsl(theta, ones(6))
+mf_typd.Dsl(theta, ones(6))
+mf_diff.Dsl(theta, ones(6))
+
+mf_dual.Dwsl(theta, ones(100), ones(6))
+mf_typd.Dwsl(theta, ones(100), ones(6))
+mf_diff.Dwsl(theta, ones(100), ones(6))
+
+mf_dual.Hwsl(theta, ones(100), ones(6))
+mf_typd.Hwsl(theta, ones(100), ones(6))
+mf_diff.Hwsl(theta, ones(100), ones(6))
+
+
 solver = IpoptSolver()
 θ₀ = [0.,0]
 div = KullbackLeibler()
 lb = [-20, -20]
 ub = [20, 20]
-minkl = MinDivProb(mf, div, θ₀, lb, ub, solver=IpoptSolver())
-solve(minkl)
+p = MinimumDivergenceEstimator(mf_dual, div, θ₀, lb, ub, solver=solver)
+#MathProgBase.MathProgSolverInterface.setwarmstart!(p.m, ones(102))
+#MathProgBase.MathProgSolverInterface.optimize!(p.m)
+solve(p)
+hessian!(p)
+vcov(p, :hessian)
+
+
+
+
+
+
+
+
+## Test MDProblem
+G = g([.06,0.1])
+c = zeros(6)
+
+r  = MinimumDivergenceProblem(G, c)
+
+H   = float(x.>1.96)
+lwr = n*[0.03, 0.03]
+upp = n*[0.06, 0.06]
+
+r  = MinimumDivergenceProblem(G, c, H, lwr, upp)
+
+
+
+
+
+
+
+
+
+
+
 @test abs(maximum(coef(minkl) - [-0.13187044493542183,0.11713620496711936]))<1e-09
 vcov!(minkl)
-vcov(minkl)
+
 
 
 
@@ -116,3 +182,5 @@ solve(minkl)
 #       0,
 #       "ma27",
 #       "exact")
+
+MDEstimator: ModifiedKullbackLeibler(), 1200 parameter(s) with 1146 moment(s)

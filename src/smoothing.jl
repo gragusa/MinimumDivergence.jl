@@ -1,12 +1,12 @@
 abstract SmoothingKernel
 
-immutable IdentityKernel <: SmoothingKernel
+immutable IdentitySmoother <: SmoothingKernel
     scale::Real
     κ₁::Real
     κ₂::Real
 end
 
-immutable TruncatedKernel <: SmoothingKernel
+immutable TruncatedSmoother <: SmoothingKernel
     ξ::Integer
     scale::Real
     smoother::Function
@@ -14,7 +14,7 @@ immutable TruncatedKernel <: SmoothingKernel
     κ₂::Real
 end
 
-immutable BartlettKernel <: SmoothingKernel
+immutable BartlettSmoother <: SmoothingKernel
     ξ::Integer
     scale::Real
     smoother::Function
@@ -22,9 +22,9 @@ immutable BartlettKernel <: SmoothingKernel
     κ₂::Real
 end
 
-IdentityKernel() = IdentityKernel(2.0, 1.0, 1.0)
+IdentitySmoother() = IdentitySmoother(2.0, 1.0, 1.0)
 
-function TruncatedKernel(ξ::Integer)
+function TruncatedSmoother(ξ::Integer)
     function smoother{T}(G::Array{T, 2})
         N, M = size(G)
         nG   = zeros(T, N, M)
@@ -39,10 +39,10 @@ function TruncatedKernel(ξ::Integer)
         end
         return(nG/(2.0*ξ+1.0))
     end
-    TruncatedKernel(ξ, 2.0/(2.0*ξ+1.0), smoother, 1.0, 1.0)
+    TruncatedSmoother(ξ, 2.0/(2.0*ξ+1.0), smoother, 1.0, 1.0)
 end
 
-function BartlettKernel(ξ::Integer)
+function BartlettSmoother(ξ::Integer)
     function smoother{T}(G::Array{T, 2})
         N, M = size(G)
         nG   = zeros(T, N, M)
@@ -59,5 +59,5 @@ function BartlettKernel(ξ::Integer)
         end
         return(nG/(2*ξ+1))
     end
-    BartlettKernel(ξ, 2.0/(2.0*ξ+1.0)*(2.0/3.0)^2, smoother, 1.0, 2.0/3.0)
+    BartlettSmoother(ξ, 2.0/(2.0*ξ+1.0)*(2.0/3.0)^2, smoother, 1.0, 2.0/3.0)
 end
