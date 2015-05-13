@@ -31,10 +31,11 @@ momf_var(md::MinimumDivergenceEstimator) = momf_var(md::MinDivProb, :weighted)
 ## Return a (m×k) matrix
 ## TODO: Should I consider the case in which <(>) present
 function momf_jac(md::MDEstimator, ver::Symbol)
+    k1 = κ₁(kernel(md))
     if ver==:weighted
-        md.e.momf.Dws(coef(md), getmdweights(md))
+        md.e.momf.Dws(coef(md), getmdweights(md))/k1
     elseif ver==:unweighted
-        md.e.momf.Dsn(coef(md))
+        md.e.momf.Dsn(coef(md))/k1
     ## elseif ver==:unsmoothed
     ##     md.e.momf.Dgn(coef(md))
     ## elseif ver==:unweighted_unsmoothed
@@ -44,23 +45,26 @@ end
 
 function momf_var(md::MDEstimator, ver::Symbol)
     sn = md.e.momf.s(coef(md))
-    if ver==:weighted     
+    S  = bw(kernel(md))
+    k2 = κ₂(kernel(md))
+    if ver==:weighted
         V = (getmdweights(md).*sn)'*sn
     elseif ver==:unweighted
         V = sn'*sn
     end
+    return (S/k2)*V
 end
 
 function hessian(md::MDEstimator, θ::Vector)
-    n, m, k = size(md)    
+    n, m, k = size(md)
     λ = zeros(m)
-    p = ones(n)    
+    p = ones(n)
 #   g = MomentMatrix(Array(Float64, n, m), IdentitySmoother())
     r = MDProblem(Array(Float64, n, m), zeros(m),
                         div = divergence(md), solver = md.e.solver)
     function f(theta)
         @inbounds r.e.mm.S[:] = md.e.momf.s(theta)
-        getobjval(solve(r))/2.0
+        getplainobjval(solve(r))
     end
     hessian(f, θ)
 end
@@ -87,16 +91,7 @@ function vcov(md::MDEstimator, ver::Symbol)
         G = momf_jac(md, ver)
         pinv(G'pinv(Ω)*G)
     end
-end 
-   
+end
+
 vcov(md::MDEstimator) = vcov(md, :weighted)
 vcov!(md::MDEstimator) = vcov!(md, :weighted)
-
-
-
-
-
-
-
-
-

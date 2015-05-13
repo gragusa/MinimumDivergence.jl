@@ -81,9 +81,9 @@ include("vcov.jl")
 ## Exported methods
 ##
 ##############################################################################
-export TruncatedKernel,
-       BartlettKernel,
-       IdentityKernel,
+export TruncatedSmoother,
+       BartlettSmoother,
+       IdentitySmoother,
        MomentFunction,
        MomentMatrix,
        MDProblem,

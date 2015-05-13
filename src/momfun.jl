@@ -99,17 +99,20 @@ function MomentMatrix(g_ineq::AbstractMatrix,
     MomentMatrix(g_eq, g_L_ineq, g_U_ineq, ker, m_eq, m_ineq)
 end
 
-function MomentFunction(g::Function, dtype::Symbol; nobs = Nothing,
-                        npar = Nothing, nmom = Nothing)
+function MomentFunction(g::Function, dtype::Symbol;
+                        kernel::SmoothingKernel = IdentitySmoother(),
+                        nobs = Nothing,
+                        npar = Nothing,
+                        nmom = Nothing)
     ## Default is no smoothing
-    MomentFunction(get_mom_deriv(g, dtype, IdentitySmoother(),
+    MomentFunction(get_mom_deriv(g, dtype, kernel,
                                  nobs, nmom, npar)...,
-                   IdentitySmoother(), nobs, nmom, npar)
+                   kernel, nobs, nmom, npar)
 end
 
-function MomentFunction(g::Function, dtype::Symbol, k::SmoothingKernel;
-                        nobs = Nothing, npar = Nothing, nmom = Nothing)
-    ## Default is no smoothing
-    MomentFunction(get_mom_deriv(g, dtype, k, nobs, nmom, npar)...,
-                   k, nobs, nmom, npar)
-end
+## function MomentFunction(g::Function, dtype::Symbol, k::SmoothingKernel;
+##                         nobs = Nothing, npar = Nothing, nmom = Nothing)
+##     ## Default is no smoothing
+##     MomentFunction(get_mom_deriv(g, dtype, k, nobs, nmom, npar)...,
+##                    k, nobs, nmom, npar)
+## end

@@ -19,7 +19,7 @@ function dgp_iv(n::Int64        = 100,
 end
 
 srand(1)
-y, x, z = dgp_iv(10000)
+y, x, z = dgp_iv(100)
 g(θ) = z.*(y-x*θ)
 
 solver = IpoptSolver(print_level = 1)

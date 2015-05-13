@@ -220,13 +220,44 @@ status(mdp::MinimumDivergenceProblem)   = status(mdp.m)
 status_plain(mdp::MinimumDivergenceEstimator) = mdp.m.inner.status
 status_plain(mdp::MinimumDivergenceProblem)   = mdp.m.inner.status
 
-getobjval(mdp::MinimumDivergenceEstimator) = getobjval(mdp.m)*objscaling(mdp)
-getobjval(mdp::MinimumDivergenceProblem)   = getobjval(mdp.m)*objscaling(mdp)
+getobjval(mdp::MinimumDivergenceEstimator) = getobjval(mdp.m)*scale_f(mdp)
+getobjval(mdp::MinimumDivergenceProblem)   = getobjval(mdp.m)*scale_f(mdp)
 
-multscaling(mdp::MDEstimator) = mdp.e.momf.kern.κ₁/mdp.e.momf.kern.κ₂
-multscaling(mdp::MDProblem)   = mdp.e.mm.kern.κ₁/mdp.e.mm.kern.κ₂
-objscaling(mdp::MDEstimator)  = mdp.e.momf.kern.scale
-objscaling(mdp::MDProblem)    = mdp.e.mm.kern.scale
+
+getplainobjval(mdp::MinimumDivergenceEstimator) = getobjval(mdp.m)
+getplainobjval(mdp::MinimumDivergenceProblem) = getobjval(mdp.m)
+
+## Scaling for lagrange multipliers
+#multscaling(mdp::MDEstimator) = mdp.e.momf.kern.κ₁/mdp.e.momf.kern.κ₂
+#multscaling(mdp::MDProblem)   = mdp.e.mm.kern.κ₁/mdp.e.mm.kern.κ₂
+
+kernel(mdp::MDEstimator) = mdp.e.momf.kern
+kernel(mdp::MDProblem) = mdp.e.mm.kern
+
+scale_l(mdp::MDEstimator) = κ₂(kernel(mdp))/κ₁(kernel(mdp))
+scale_l(mdp::MDProblem)   = κ₂(kernel(mdp))/κ₁(kernel(mdp))
+
+## Scaling for objective function
+## 2.0/S*k1^2/k2
+## for iid this reduces to 2.0
+function scale_f(mdp::MDEstimator)
+    k  = kernel(mdp)
+    St = bw(k)
+    k1 = κ₁(k)
+    k2 = κ₂(k)
+    2.0/(St*k1^2/k2)
+end
+
+function scale_f(mdp::MDProblem)
+    k  = kernel(mdp)
+    St = bw(k)
+    k1 = κ₁(k)
+    k2 = κ₂(k)
+    2.0/(St*k1^2/k2)
+end
+
+
+
 
 npar(mdp::MinimumDivergenceEstimator) = mdp.e.momf.npar
 nobs(mdp::MinimumDivergenceEstimator) = mdp.e.momf.nobs
@@ -263,8 +294,8 @@ try
     _geteta(m::KNITRO.KnitroMathProgModel)    = m.inner.lambda[nmom(m)+1]
 end
 
-getlambda(mdp::MinimumDivergenceEstimator) = multscaling(mdp).*_getlambda(mdp.m)
-geteta(mdp::MinimumDivergenceEstimator)    = multscaling(mdp).*_geteta(mdp.m)
+getlambda(mdp::MDEstimator) = scale_l(mdp).*_getlambda(mdp.m)
+geteta(mdp::MDEstimator)    = scale_l(mdp).*_geteta(mdp.m)
 
 df(mdp::MinimumDivergenceEstimator) = nmom(mdp)-npar(mdp)
 
@@ -309,7 +340,10 @@ function LM_test(me::MDEstimator, ver::Symbol = :weighted)
     l = getlambda(me)
     Ω = momf_var(me, ver)
     n = nobs(me)
-    j = n^2*l'*pinv(Ω)*l
+    S = bw(kernel(me))
+    k1= κ₁(kernel(me))
+    k2= κ₂(kernel(me))
+    j = (l'*Ω*l)/S^2
     p = df(me) > 0 ? ccdf(Chisq(df(me)), j) : NaN
     # sometimes p is garbage, so we clamp it to be within reason
     return j[1], clamp(p, eps(), Inf)
@@ -319,7 +353,8 @@ function J_test(me::MDEstimator, ver::Symbol = :weighted)
     g = me.e.momf.sn(coef(me))
     Ω = momf_var(me, ver)
     n = nobs(me)
-    j = (g'*pinv(Ω)*g)
+    k1= κ₁(kernel(me))
+    j = (g'*pinv(Ω)*g)/k1^2
     p = df(me) > 0 ? ccdf(Chisq(df(me)), j) : NaN
     # sometimes p is garbage, so we clamp it to be within reason
     return j[1], clamp(p, eps(), Inf)
